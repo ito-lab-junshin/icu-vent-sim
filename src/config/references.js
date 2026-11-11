@@ -11,6 +11,14 @@ export const REFERENCES = {
     status: 'verified',
     source: 'ARDS Network low tidal volume protocol',
   },
+  // 生理学の式と定数（Phase 3。docs/PHASE3.md 8 の A）。教育用モデルの式として使う。
+  // 原典では未確認で、伊藤先生が教科書で確かめた項目から confirmedBy を記入する。ガイドライン値ではないので、画面に「参考値（未確認）」は付けない
+  physiologyAlveolarGas: { status: 'model', confirmedBy: null, source: '肺胞気式 PAO2 = FiO2 ×（760 − 47）− PaCO2 ÷ 0.8 — 呼吸生理学の教科書' },
+  physiologyAlveolarVentilation: { status: 'model', confirmedBy: null, source: '肺胞換気式 PaCO2 = 0.863 × 二酸化炭素産生量 ÷ VA — 呼吸生理学の教科書' },
+  physiologyO2Content: { status: 'model', confirmedBy: null, source: '酸素含量 1.34 × Hb × SO2 + 0.003 × PO2 — 呼吸生理学の教科書（係数は 1.34〜1.39、0.003〜0.0031 と教科書により違う）' },
+  physiologyO2Dissociation: { status: 'model', confirmedBy: null, source: '酸素解離曲線 SO2 = 1 ÷（1 + 23400 ÷（PO2³ + 150 × PO2））— Severinghaus JW. J Appl Physiol 1979;46(3):599-602' },
+  physiologyFickShunt: { status: 'model', confirmedBy: null, source: 'Fick の関係、シャントの式 — 呼吸生理学の教科書' },
+  physiologyHendersonHasselbalch: { status: 'model', confirmedBy: null, source: 'pH = 6.1 + log10（HCO3 ÷（0.03 × PaCO2））— 呼吸生理学の教科書' },
   ecmoLungRest: {
     status: 'unverified',
     source: 'ELSO Interim Guidelines for Adult Respiratory Failure (2021) — 原文の表で確認予定',

@@ -19,6 +19,7 @@ describe('PB980 風：設定の換算（settingsMap）', () => {
     const e = toEngineSettings(initial);
     expect(e).toMatchObject({ mode: 'VC-AC', rr: 12, vt: 0.5, flow: 1, flowPattern: 'square', peep: 5 });
     expect(e.ti).toBeCloseTo(1.0, 12);
+    expect(e.fio2).toBeCloseTo(0.4, 12); // O2 40 % をエンジンに渡す
   });
 
   // 受け入れ条件 2

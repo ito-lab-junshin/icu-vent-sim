@@ -49,7 +49,7 @@ export function toEngineSettings(pb) {
     tHigh: pb.th,
     tLow: pb.tl,
     pPeakAlarm: pb.pPeak,
-    // O2 はエンジンに渡さない（ガス交換は Phase 3）
+    fio2: pb.o2 / 100,
   };
 }
 

@@ -9,6 +9,10 @@ import { lpmToLps, mlToL, lToMl, complianceToMl } from '../../engine/units.js';
 import { useVentSimulation } from '../vent/useVentSimulation.js';
 import WaveformCanvas, { TRACE_PAW, TRACE_FLOW, TRACE_VOLUME_FRC } from '../vent/WaveformCanvas.jsx';
 import PatientPanel, { Slider, PATIENT_INITIAL, toEnginePatient } from './PatientPanel.jsx';
+import TimeControl from '../time/TimeControl.jsx';
+import TrendChart, { TREND_ITEMS, TREND_ITEMS_BLOOD_GAS } from '../time/TrendChart.jsx';
+
+const TREND_ALL = [...TREND_ITEMS_BLOOD_GAS, ...TREND_ITEMS];
 
 // 開発確認用ページ。計算エンジン（src/engine）の結果を、機種の見た目なしで確かめる。
 // ここの初期値とスライダーの範囲は確認用に置いたもので、機種の既定値やガイドライン値ではない。
@@ -27,7 +31,7 @@ const INITIAL = {
   ...PATIENT_INITIAL,
   // 設定
   mode: 'VC-AC', device: 'pb980',
-  rr: 12, ti: 1.0, peep: 5, triggerFlow: 2,
+  rr: 12, ti: 1.0, peep: 5, triggerFlow: 2, fio2Pct: 40,
   vt: 500, flow: 60, flowPattern: 'square',
   deltaP: 15, riseTime: 0,
   targetVt: 500,
@@ -42,7 +46,7 @@ function toEngine(u) {
   return {
     ...toEnginePatient(u),
     settings: {
-      mode: u.mode, rr: u.rr, ti: u.ti, peep: u.peep, triggerFlow: lpmToLps(u.triggerFlow),
+      mode: u.mode, rr: u.rr, ti: u.ti, peep: u.peep, triggerFlow: lpmToLps(u.triggerFlow), fio2: u.fio2Pct / 100,
       vt: mlToL(u.vt), flow: lpmToLps(u.flow), flowPattern: u.flowPattern,
       deltaP: u.deltaP, riseTime: u.riseTime,
       targetVt: mlToL(u.targetVt),
@@ -68,7 +72,9 @@ export default function EngineViewer() {
   const [u, setU] = useState(INITIAL);
   const inputsRef = useRef(null);
   inputsRef.current = { ...toEngine(u), deviceId: u.device };
-  const { sim, breaths, status, running, setRunning, inspHold, expHold, reset } = useVentSimulation(inputsRef, WINDOW);
+  const api = useVentSimulation(inputsRef, WINDOW);
+  const { sim, breaths, status, inspHold, expHold, reset } = api;
+  const v = status.vitals;
   const phase = status.phase;
   const set = (key) => (value) => setU((prev) => ({ ...prev, [key]: value }));
 
@@ -137,6 +143,7 @@ export default function EngineViewer() {
               </>
             )}
             {u.mode !== 'VC-AC' && <Slider label="立ち上がり時間" unit="s" value={u.riseTime} min={0} max={0.5} step={0.05} onChange={set('riseTime')} />}
+            <Slider label="酸素濃度 FiO2" unit="%" value={u.fio2Pct} min={21} max={100} step={1} onChange={set('fio2Pct')} />
             {u.mode !== 'APRV' && <Slider label="フロートリガ" unit="L/min" value={u.triggerFlow} min={0.5} max={10} step={0.5} onChange={set('triggerFlow')} />}
           </fieldset>
 
@@ -166,11 +173,11 @@ export default function EngineViewer() {
         </div>
 
         <div className="ev-main">
+          <TimeControl api={api} />
           <div className="ev-toolbar">
             <button type="button" onClick={() => inspHold(u.holdTime)}>吸気ホールド</button>
             <button type="button" onClick={() => expHold(u.holdTime)}>呼気ホールド</button>
             <Slider label="保持時間" unit="s" value={u.holdTime} min={0.5} max={3} step={0.5} onChange={set('holdTime')} />
-            <button type="button" onClick={() => setRunning((r) => !r)}>{running ? '一時停止' : '再開'}</button>
             <button type="button" onClick={reset}>最初からやり直す</button>
           </div>
           <p className="ev-status" aria-live="polite">
@@ -182,6 +189,36 @@ export default function EngineViewer() {
             {lastBreath?.settingAdjusted && <span className="ev-flag">PH を PL + 5 cmH2O に直しています</span>}
           </p>
           <WaveformCanvas sim={sim} traces={TRACES} windowSec={WINDOW} className="ev-canvas" label="圧・流量・容量の波形（10 秒分）" />
+
+          <h2>ガス交換と循環（いまの値）</h2>
+          <div className="ev-table-wrap">
+            <table className="ev-table">
+              <thead>
+                <tr>
+                  <th>PAO2</th><th>PaO2</th><th>SaO2</th><th>PaCO2</th><th>EtCO2</th><th>pH</th><th>HCO3</th>
+                  <th>CaO2</th><th>CvO2</th><th>SvO2</th><th>心拍出量</th><th>心拍数</th><th>血圧（平均）</th><th>CVP</th>
+                </tr>
+                <tr className="ev-units">
+                  <th>mmHg</th><th>mmHg</th><th>%</th><th>mmHg</th><th>mmHg</th><th></th><th>mEq/L</th>
+                  <th>mL/dL</th><th>mL/dL</th><th>%</th><th>L/min</th><th>/min</th><th>mmHg</th><th>mmHg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {v && (
+                  <tr>
+                    <td>{fmt(v.pAO2, 0)}</td><td>{fmt(v.paO2, 0)}</td><td>{fmt(v.saO2 * 100, 1)}</td><td>{fmt(v.paCO2, 1)}</td><td>{fmt(v.etCO2, 1)}</td>
+                    <td>{fmt(v.ph, 2)}</td><td>{fmt(v.hco3, 0)}</td><td>{fmt(v.caO2, 1)}</td><td>{fmt(v.cvO2, 1)}</td><td>{fmt(v.svO2 * 100, 0)}</td>
+                    <td>{fmt(v.co, 2)}</td><td>{fmt(v.hr, 0)}</td><td>{fmt(v.sys, 0)}/{fmt(v.dia, 0)}（{fmt(v.map, 0)}）</td><td>{fmt(v.cvp, 1)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <p className="ev-note">
+            1 呼吸が終わるたびに更新されます。式と定数は教育用モデルのもので、原典では未確認です（docs/REFERENCES.md）。
+            循環の係数（気道内圧による心拍出量の低下など）は仮の値です。
+          </p>
+          <TrendChart api={api} items={TREND_ALL} className="trend-canvas trend-canvas-tall" />
 
           <h2>直近 1 分のまとめ</h2>
           <p className="ev-summary">

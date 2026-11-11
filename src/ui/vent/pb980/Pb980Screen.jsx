@@ -4,14 +4,14 @@ import { predictedBodyWeight } from '../../../engine/patient.js';
 import { summarizeBreaths } from '../../../engine/breathMetrics.js';
 import { evaluateAlarms } from '../../../engine/alarms.js';
 import { DEFAULT_HOLD_TIME } from '../../../engine/maneuvers.js';
-import { useVentSimulation } from '../useVentSimulation.js';
+import { useSimulation } from '../../SimulationContext.jsx';
 import {
-  createSettings, currentValues, hasPending, isPending, changeSetting, nudgeSetting, confirmSettings, cancelSettings,
+  currentValues, hasPending, isPending, changeSetting, nudgeSetting, confirmSettings, cancelSettings,
 } from '../ventSettings.js';
 import WaveformCanvas, { TRACE_PAW, TRACE_FLOW, TRACE_VOLUME_BREATH } from '../WaveformCanvas.jsx';
 import LoopCanvas from '../LoopCanvas.jsx';
-import PatientPanel, { PATIENT_INITIAL, toEnginePatient } from '../../dev/PatientPanel.jsx';
-import { toEngineSettings, alarmLimits, modeDisplayName, settingKeysFor, DEVICE_ID } from './settingsMap.js';
+import PatientPanel from '../../dev/PatientPanel.jsx';
+import { toEngineSettings, alarmLimits, modeDisplayName, settingKeysFor } from './settingsMap.js';
 import { patientDataPages } from './patientData.js';
 import PatientDataBanner from './PatientDataBanner.jsx';
 import SettingsBar from './SettingsBar.jsx';
@@ -34,9 +34,8 @@ const TRACES_WITH_LOOP = TRACES.slice(0, 2);
 // model: アラーム消音の時間 120 秒（機種の値は取扱説明書で未確認。音は出ないので、表示だけに使う）
 const ALARM_SILENCE_SEC = 120;
 
-export default function Pb980Screen() {
-  const [settings, setSettings] = useState(() => createSettings(defs));
-  const [patient, setPatient] = useState(PATIENT_INITIAL);
+// settings、setSettings：PB980 風の設定（保留と確定）。画面を切り替えても消えないように、App が持つ
+export default function Pb980Screen({ settings, setSettings }) {
   const [selected, setSelected] = useState(null);
   const [panel, setPanel] = useState(null); // null | 'setup' | 'alarm'
   const [layout, setLayout] = useState('waves'); // 'waves' | 'loops'
@@ -46,10 +45,13 @@ export default function Pb980Screen() {
   const values = currentValues(settings);
   const confirmed = settings.confirmed;
 
-  // エンジンには確定済みの設定だけを渡す
-  const inputsRef = useRef(null);
-  inputsRef.current = { ...toEnginePatient(patient), settings: toEngineSettings(confirmed), deviceId: DEVICE_ID };
-  const { sim, breaths, status, inspHold, expHold, manualBreath } = useVentSimulation(inputsRef);
+  // エンジンには確定済みの設定だけを渡す（O2 も渡す）
+  const { sim, breaths, status, inspHold, expHold, manualBreath, patient, setPatient, applySettings } = useSimulation();
+  const engineSettings = useMemo(() => toEngineSettings(confirmed), [confirmed]);
+  useEffect(() => {
+    applySettings(engineSettings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engineSettings]);
 
   const summary = useMemo(() => summarizeBreaths(breaths), [breaths]);
   const pages = useMemo(() => patientDataPages(breaths, summary, confirmed.o2), [breaths, summary, confirmed.o2]);
@@ -144,11 +146,10 @@ export default function Pb980Screen() {
 
       <p className="pb-note">
         「参考値（未確認）」の値は{PB980_SETTINGS.note}。PB980 の取扱説明書で確認できた項目から置き換えます。
-        O2 は設定の表示のみ（酸素化の計算は Phase 3）。
       </p>
 
       <details className="pb-patient">
-        <summary>患者の肺と自発呼吸を変える（確認用。シナリオは Phase 4）</summary>
+        <summary>患者の肺・自発呼吸・ガス交換を変える（確認用。シナリオは Phase 4）</summary>
         <div className="pb-patient-grid ev">
           <PatientPanel value={patient} onChange={setPatient} />
         </div>
