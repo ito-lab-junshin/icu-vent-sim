@@ -49,6 +49,16 @@ describe('ventSettings（設定の保留と確定）', () => {
     expect(currentValues(s).flowPattern).toBe('ramp');
   });
 
+  it('Mode の並びは PB980 と同じ（A/C、SIMV、SPONT、BiLevel）。未対応の SIMV は選べない', () => {
+    expect(defs.mode.options.map((o) => o.label)).toEqual(['A/C', 'SIMV', 'SPONT', 'BiLevel']);
+    expect(defs.mode.options.filter((o) => o.unsupported).map((o) => o.value)).toEqual(['SIMV']);
+    let s = createSettings(defs);
+    s = changeSetting(s, 'mode', 'SIMV', defs);
+    expect(currentValues(s).mode).toBe('AC');
+    s = nudgeSetting(s, 'mode', +1, defs);
+    expect(currentValues(s).mode).toBe('SPONT'); // SIMV を飛ばす
+  });
+
   it('確定済みの値に戻すと、保留から外れる', () => {
     let s = createSettings(defs);
     s = nudgeSetting(s, 'f', +1, defs);

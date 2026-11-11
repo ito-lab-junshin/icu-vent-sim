@@ -1,4 +1,5 @@
 import SettingTile from './SettingTile.jsx';
+import Unverified from '../Unverified.jsx';
 
 const KEYS = ['pPeak', 'mveLow', 'rrHigh', 'apnea'];
 
@@ -13,10 +14,10 @@ export default function AlarmDialog({ tileProps, onClose }) {
       <div className="pb-tiles">
         {KEYS.map((k) => <SettingTile key={k} id={k} {...tileProps(k)} />)}
       </div>
-      <p className="pb-panel-note">
-        気道内圧上限に達すると、その吸気を打ち切ります（参考値・未確認）。VC+ の目標吸気圧は、気道内圧上限 − 3 cmH2O までです。
-        アラームの名称は一般的なもので、機種の表記ではありません。音は出ません。
-      </p>
+      <p className="pb-panel-note"><Unverified refKey="pb980SettingRanges" what="＊の設定の範囲・刻み・初期値" /></p>
+      <p className="pb-panel-note"><Unverified refKey="pb980Alarms" what="アラームの名称・優先度の色・消音の時間・リセットの動作（一般的な名称で、機種の表記ではない）" /></p>
+      <p className="pb-panel-note"><Unverified refKey="pb980PeakAlarmTruncation" what="気道内圧上限に達すると、その吸気を打ち切る動作" /></p>
+      <p className="pb-panel-note">VC+ の目標吸気圧は、気道内圧上限 − 3 cmH2O までです（確認済み）。音は出ません。</p>
     </div>
   );
 }

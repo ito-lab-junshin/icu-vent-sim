@@ -17,7 +17,8 @@ export const isPending = (state, key) => key in state.pending;
 
 // 範囲の端で止め、刻みに丸める
 export function clampToDef(def, value) {
-  if (def.type === 'choice') return def.options.some((o) => o.value === value) ? value : def.initial;
+  // 未対応（unsupported）の選択肢は選べない
+  if (def.type === 'choice') return def.options.some((o) => o.value === value && !o.unsupported) ? value : def.initial;
   const stepped = Math.round((value - def.min) / def.step) * def.step + def.min;
   const digits = Math.max(0, -Math.floor(Math.log10(def.step) + 1e-9));
   return Number(Math.min(def.max, Math.max(def.min, stepped)).toFixed(digits));
@@ -37,8 +38,9 @@ export function nudgeSetting(state, key, direction, defs) {
   const def = defs[key];
   const now = currentValues(state)[key];
   if (def.type === 'choice') {
-    const i = def.options.findIndex((o) => o.value === now);
-    const next = def.options[(i + direction + def.options.length) % def.options.length].value;
+    const usable = def.options.filter((o) => !o.unsupported);
+    const i = usable.findIndex((o) => o.value === now);
+    const next = usable[(i + direction + usable.length) % usable.length].value;
     return changeSetting(state, key, next, defs);
   }
   return changeSetting(state, key, now + direction * def.step, defs);

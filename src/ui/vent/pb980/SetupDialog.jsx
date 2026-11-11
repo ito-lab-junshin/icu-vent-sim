@@ -1,13 +1,15 @@
 import SettingTile from './SettingTile.jsx';
+import Unverified from '../Unverified.jsx';
 
 // 設定の流れ：性別と身長 → PBW → Mode → 換気の種類。ここでの変更も保留になり、「確定」で反映する。
 export default function SetupDialog({ values, defs, pbw, onChoose, tileProps, onClose }) {
-  const Choice = ({ id, extra }) => (
+  const Choice = ({ id }) => (
     <div className="pb-choice" role="group" aria-label={defs[id].title}>
-      {defs[id].options.map((o) => (
+      {defs[id].options.map((o) => (o.unsupported ? (
+        <button key={o.value} type="button" disabled title="エンジンにないモード">{o.label}（未対応）</button>
+      ) : (
         <button key={o.value} type="button" aria-pressed={values[id] === o.value} onClick={() => onChoose(id, o.value)}>{o.label}</button>
-      ))}
-      {extra}
+      )))}
     </div>
   );
   return (
@@ -24,10 +26,11 @@ export default function SetupDialog({ values, defs, pbw, onChoose, tileProps, on
             <SettingTile id="height" {...tileProps('height')} />
             <p className="pb-pbw">PBW <strong>{pbw.toFixed(1)}</strong> kg</p>
           </div>
+          <p className="pb-panel-note"><Unverified refKey="pb980SettingRanges" what="身長の範囲・刻み・初期値" /></p>
         </div>
         <div>
           <h4>2. Mode</h4>
-          <Choice id="mode" extra={<button type="button" disabled title="エンジンにないモード">SIMV（未対応）</button>} />
+          <Choice id="mode" />
           {values.mode === 'AC' && (
             <>
               <h4>3. 強制換気の種類</h4>

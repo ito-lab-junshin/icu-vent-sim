@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { VENT_LAYOUTS, MODE_NAMES } from '../../config/ventLayouts.js';
+import { UNVERIFIED_LABEL } from '../../config/references.js';
+import Unverified from '../vent/Unverified.jsx';
 import { DEFAULT_HOLD_TIME } from '../../engine/maneuvers.js';
 import { summarizeBreaths, formatIE } from '../../engine/breathMetrics.js';
 import { resolveDeviceLimits } from '../../engine/deviceRules.js';
@@ -140,10 +142,12 @@ export default function EngineViewer() {
 
           <fieldset>
             <legend>機種ごとの圧の上限ルール</legend>
+            <p className="ev-note"><span className="unverified"><strong>{UNVERIFIED_LABEL}</strong>：このページのスライダーの範囲と初期値（アラーム上限・リミット圧を含む）。確認用に置いた値で、機種の既定値ではない</span></p>
             {u.device === 'pb980' && (
               <>
                 <Slider label="PEAK アラーム上限" unit="cmH2O" value={u.pPeakAlarm} min={10} max={100} step={1} onChange={set('pPeakAlarm')} />
-                <p className="ev-note">PB980 風：VC+（PRVC）の目標吸気圧は PEEP + {limits.prvcMinAbovePeep} cmH2O 以上、{limits.prvcMaxPressure} cmH2O 以下（PEAK アラーム上限 − 3）。BiLevel の PH は PL + {limits.bilevelMinDelta} cmH2O 以上。吸気中に PEAK アラーム上限に達すると、その吸気を打ち切る（参考値・未確認）。</p>
+                <p className="ev-note">PB980 風：VC+（PRVC）の目標吸気圧は PEEP + {limits.prvcMinAbovePeep} cmH2O 以上、{limits.prvcMaxPressure} cmH2O 以下（PEAK アラーム上限 − 3）。BiLevel の PH は PL + {limits.bilevelMinDelta} cmH2O 以上。</p>
+                <p className="ev-note"><Unverified refKey="pb980PeakAlarmTruncation" what="吸気中に PEAK アラーム上限に達すると、その吸気を打ち切る動作" /></p>
               </>
             )}
             {u.device === 'hamilton' && (
@@ -172,7 +176,7 @@ export default function EngineViewer() {
           <p className="ev-status" aria-live="polite">
             {phase === 'inspHold' && <span className="ev-flag">吸気ホールド中</span>}
             {phase === 'expHold' && <span className="ev-flag">呼気ホールド中</span>}
-            {lastBreath?.highPressureTerminated && <span className="ev-flag ev-warn">気道内圧がアラーム上限に達し、吸気を打ち切りました（参考値・未確認）</span>}
+            {lastBreath?.highPressureTerminated && <span className="ev-flag ev-warn">気道内圧がアラーム上限に達し、吸気を打ち切りました（{UNVERIFIED_LABEL}）</span>}
             {lastBreath?.pressureLimited && <span className="ev-flag ev-warn">気道内圧が上限で制限されています（pressureLimited）</span>}
             {lastBreath?.minPressureApplied && <span className="ev-flag">吸気圧が機種の下限になっています</span>}
             {lastBreath?.settingAdjusted && <span className="ev-flag">PH を PL + 5 cmH2O に直しています</span>}

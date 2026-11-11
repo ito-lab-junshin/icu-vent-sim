@@ -9,7 +9,8 @@ import { DT } from '../../engine/units.js';
 // 返り値：
 //   sim      ref。sim.current = { state, samples（直近 windowSec 秒）, breaths（終わった呼吸） }。波形の部品が直接読む
 //   breaths  終わった呼吸の実測値（古い順、直近 60 個）
-//   status   { t, phase, lastInspStart }。約 0.2 秒ごとと、相が変わったときに更新する
+//   status   { t, phase, lastInspStart, terminated }。約 0.2 秒ごとと、相が変わったときに更新する。
+//            terminated は、いまの呼吸の吸気がアラーム上限で打ち切られたか（呼吸が終わるのを待たずにアラームを出すため）
 export function useVentSimulation(inputsRef, windowSec = 10) {
   const make = () => {
     const i = inputsRef.current;
@@ -19,7 +20,7 @@ export function useVentSimulation(inputsRef, windowSec = 10) {
   if (sim.current === null) sim.current = make();
   const [breaths, setBreaths] = useState([]);
   const [running, setRunning] = useState(true);
-  const [status, setStatus] = useState({ t: 0, phase: 'exp', lastInspStart: 0 });
+  const [status, setStatus] = useState({ t: 0, phase: 'exp', lastInspStart: 0, terminated: false });
 
   useEffect(() => {
     let raf = 0;
@@ -53,7 +54,10 @@ export function useVentSimulation(inputsRef, windowSec = 10) {
         if (s.state.phase !== lastPhase || t - lastStatusAt >= 0.2) {
           lastPhase = s.state.phase;
           lastStatusAt = t;
-          setStatus({ t, phase: s.state.phase, lastInspStart: s.state.breath?.tStart ?? 0 });
+          setStatus({
+            t, phase: s.state.phase, lastInspStart: s.state.breath?.tStart ?? 0,
+            terminated: Boolean(s.state.breath?.highPressureTerminated),
+          });
         }
       }
       raf = requestAnimationFrame(tick);
@@ -68,7 +72,7 @@ export function useVentSimulation(inputsRef, windowSec = 10) {
   const reset = () => {
     sim.current = make();
     setBreaths([]);
-    setStatus({ t: 0, phase: 'exp', lastInspStart: 0 });
+    setStatus({ t: 0, phase: 'exp', lastInspStart: 0, terminated: false });
   };
 
   return { sim, breaths, status, running, setRunning, inspHold, expHold, manualBreath, reset };

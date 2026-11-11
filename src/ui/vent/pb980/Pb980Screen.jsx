@@ -18,6 +18,7 @@ import SettingsBar from './SettingsBar.jsx';
 import SetupDialog from './SetupDialog.jsx';
 import AlarmDialog from './AlarmDialog.jsx';
 import Keys from './Keys.jsx';
+import Unverified from '../Unverified.jsx';
 
 // PB980 風の人工呼吸器の画面。画面構成（配置、波形の並び、操作の流れ）だけを参考にしており、
 // ロゴ・アイコンの絵柄・商標デザインは再現していない。
@@ -54,7 +55,8 @@ export default function Pb980Screen() {
   const pages = useMemo(() => patientDataPages(breaths, summary, confirmed.o2), [breaths, summary, confirmed.o2]);
   const alarms = evaluateAlarms({
     limits: alarmLimits(confirmed),
-    lastBreath: breaths.at(-1) ?? null,
+    // いまの呼吸が打ち切られたら、その呼吸が終わるのを待たずにアラームを出す
+    lastBreath: status.terminated ? { ...(breaths.at(-1) ?? {}), highPressureTerminated: true } : breaths.at(-1) ?? null,
     summary,
     timeSinceInspStart: status.t - status.lastInspStart,
   });
@@ -98,6 +100,10 @@ export default function Pb980Screen() {
         {silenced && <span className="pb-silence">消音中 残り {silenceLeft} s</span>}
         {status.phase === 'inspHold' && <span className="pb-hold">吸気ポーズ中</span>}
         {status.phase === 'expHold' && <span className="pb-hold">呼気ポーズ中</span>}
+        <span className="pb-alarmbar-note">
+          <Unverified refKey="pb980Alarms" what="アラームの名称・色・消音の時間" />
+          {alarms.some((a) => a.id === 'highPressure') && <Unverified refKey="pb980PeakAlarmTruncation" what="吸気の打ち切り" />}
+        </span>
       </div>
 
       <PatientDataBanner pages={pages} />
@@ -137,7 +143,7 @@ export default function Pb980Screen() {
       />
 
       <p className="pb-note">
-        設定範囲と初期値は{PB980_SETTINGS.note}。アラームの名称、消音の時間、気道内圧上限での吸気の打ち切りは参考値（未確認）。
+        「参考値（未確認）」の値は{PB980_SETTINGS.note}。PB980 の取扱説明書で確認できた項目から置き換えます。
         O2 は設定の表示のみ（酸素化の計算は Phase 3）。
       </p>
 

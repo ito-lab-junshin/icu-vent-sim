@@ -79,20 +79,25 @@ export const DEVICE_RULES = {
 };
 
 // PB980 風の画面の設定項目（Phase 2）。
-// 範囲・刻み・初期値は、画面を動かすために置いた仮の値（status: 'model'）で、PB980 の仕様ではない。
+// 範囲・刻み・初期値は、画面を動かすために置いた仮の値で、PB980 の仕様ではない。
+// 原文で確認できていないので status は 'unverified' とし、画面に「参考値（未確認）」と表示する（references.js の pb980SettingRanges）。
 // 取扱説明書の設定範囲の表を確認したら、ここを書き換えて status を 'verified' にする（docs/REFERENCES.md）。
 // 記号（f、VT、V̇max など）は DESIGN.md 5.1 と PB980 Quick Reference Guide の表記。
 const num = (label, title, unit, min, max, step, initial) => ({ type: 'number', label, title, unit, min, max, step, initial });
 const choice = (label, title, options, initial) => ({ type: 'choice', label, title, options, initial });
 export const PB980_SETTINGS = {
-  status: 'model',
-  note: '仮の設定範囲（機種の仕様ではない）',
+  status: 'unverified',
+  note: '仮の値で、機種の仕様ではない',
   items: {
     // 患者
     sex: choice('性別', '性別', [{ value: 'male', label: '男性' }, { value: 'female', label: '女性' }], 'male'),
     height: num('身長', '身長', 'cm', 130, 200, 1, 170),
     // 換気の種類
-    mode: choice('Mode', 'Mode', [{ value: 'AC', label: 'A/C' }, { value: 'SPONT', label: 'SPONT' }, { value: 'BILEVEL', label: 'BiLevel' }], 'AC'),
+    mode: choice('Mode', 'Mode', [
+      // 並びは PB980 と同じ（A/C、SIMV、SPONT、BiLevel）。SIMV はエンジンにないので選べない
+      { value: 'AC', label: 'A/C' }, { value: 'SIMV', label: 'SIMV', unsupported: true },
+      { value: 'SPONT', label: 'SPONT' }, { value: 'BILEVEL', label: 'BiLevel' },
+    ], 'AC'),
     mandatoryType: choice('強制換気の種類', '強制換気の種類', [{ value: 'VC', label: 'VC' }, { value: 'PC', label: 'PC' }, { value: 'VC+', label: 'VC+' }], 'VC'),
     // 主要設定
     f: num('f', '呼吸回数', '/min', 1, 60, 1, 12),

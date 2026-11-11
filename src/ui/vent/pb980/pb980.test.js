@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PB980_SETTINGS } from '../../../config/ventLayouts.js';
+import { REFERENCES, UNVERIFIED_LABEL, needsUnverifiedLabel } from '../../../config/references.js';
 import { createSettings, changeSetting, confirmSettings } from '../ventSettings.js';
 import { toEngineSettings, commonModeId, modeDisplayName, settingKeysFor, alarmLimits, DEVICE_ID } from './settingsMap.js';
 import { patientDataPages } from './patientData.js';
@@ -73,6 +74,16 @@ describe('PB980 風：設定の換算（settingsMap）', () => {
     s = changeSetting(s, 'vt', 400, defs);
     expect(toEngineSettings(s.confirmed).vt).toBe(0.5);
     expect(toEngineSettings(confirmSettings(s).confirmed).vt).toBe(0.4);
+  });
+});
+
+describe('PB980 風：確認できていない値の表示', () => {
+  it('設定範囲、アラーム、吸気の打ち切りは、確認できるまで「参考値（未確認）」の表示が必要', () => {
+    expect(UNVERIFIED_LABEL).toBe('参考値（未確認）');
+    expect(PB980_SETTINGS.status).toBe(REFERENCES.pb980SettingRanges.status);
+    for (const key of ['pb980SettingRanges', 'pb980Alarms', 'pb980PeakAlarmTruncation']) expect(needsUnverifiedLabel(key), key).toBe(true);
+    expect(needsUnverifiedLabel('pbwFormula')).toBe(false);
+    expect(needsUnverifiedLabel('登録のない項目')).toBe(true);
   });
 });
 
