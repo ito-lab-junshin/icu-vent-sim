@@ -1,7 +1,7 @@
 # Claude Code への指示（icu-vent-sim）
 
 このリポジトリは人工呼吸器管理・VV ECMO 管理の教育用シミュレータです。設計は DESIGN.md を正とします。
-各 Phase の作業内容は docs/PHASE{番号}.md の指示書に従います（現在は docs/PHASE2.md。Phase 1 は完了）。
+各 Phase の作業内容は docs/PHASE{番号}.md の指示書に従います（現在は docs/PHASE3.md。Phase 1・2 は完了）。
 
 ## 必ず守ること
 

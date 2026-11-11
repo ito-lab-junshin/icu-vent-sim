@@ -10,7 +10,7 @@ export function newBreath({ index, modeId, trigger, type, tStart, vStart, peepSe
     minPressureApplied: flags.minPressureApplied,
     settingAdjusted: flags.settingAdjusted,
     highPressureTerminated: false,
-    steps: 0, sumPaw: 0,
+    steps: 0, sumPaw: 0, sumPalv: 0,
     inspSteps: 0, pauseSteps: 0, expSteps: 0, holdSteps: 0,
     pip: -Infinity, flowAtPip: 0, peakFlow: 0, endInspFlow: 0,
     pausePaw: null, pplatHold: null, totalPeep: null,
@@ -23,6 +23,7 @@ export function accumulate(b, sample) {
   const n = { ...b };
   n.steps += 1;
   n.sumPaw += sample.paw;
+  n.sumPalv += sample.palv ?? sample.paw;
   if (sample.limited) n.pressureLimited = true;
   if (sample.terminated) n.highPressureTerminated = true;
   if (sample.phase === 'insp') {
@@ -70,6 +71,8 @@ export function finalizeBreath(b, vEnd) {
     pip: b.pip,
     pplat,
     pmean: b.sumPaw / b.steps,
+    // 肺胞圧（弾性による圧 V ÷ C）の平均。人工呼吸器では測れない、エンジンの中の値。循環の計算に使う（auto-PEEP の分も含む）
+    palvMean: b.sumPalv / b.steps,
     peepSet: b.peepSet,
     totalPeep,
     autoPeep: totalPeep != null ? totalPeep - b.peepSet : null,

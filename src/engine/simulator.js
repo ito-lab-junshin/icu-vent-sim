@@ -1,7 +1,8 @@
 // エンジンの入口。状態を受け取り、時間を 1 ステップ進めた新しい状態を返す（純粋関数）。
 // React に依存しない。乱数は使わない（同じ入力なら同じ出力）。
 //
-//   patient  = { c, rInsp, rExp }                      肺（内部単位）
+//   patient  = { c, rInsp, rExp, gas }                 肺（内部単位）。gas はガス交換と循環のパラメータ（gasDynamics.js）。
+//                                                      gas がなければ、ガス交換は計算しない（Phase 1 と同じ動き）
 //   effort   = { pmusMax, rate, tiEffort } または null  自発呼吸
 //   settings = { mode, ...モードごとの設定 }             各 modes/*.js の先頭に設定の一覧
 //   deviceId = 'pb980' | 'hamilton' | 'evita'          圧の上限ルールを選ぶ
@@ -10,6 +11,8 @@ import { pmusAt } from './patientEffort.js';
 import { alveolarPressure, flowAtPressure, pawAtFlow, stepPressureControlled, stepFlowControlled } from './lungMechanics.js';
 import { resolveDeviceLimits } from './deviceRules.js';
 import { newBreath, accumulate, finalizeBreath } from './breathMetrics.js';
+import { initialSlowState, advanceSlowState, alveolarVolume, APNEA_ADVANCE } from './gasDynamics.js';
+import { toSteps } from './units.js';
 import { vcAc } from './modes/vcAc.js';
 import { pcAc } from './modes/pcAc.js';
 import { prvc } from './modes/prvc.js';
@@ -53,6 +56,7 @@ export function createState(patient, settings, deviceId) {
     queuedTrigger: null,
     pendingManualBreath: false, // 予約された用手換気
     forceExp: false,            // アラーム上限に達したので、次のステップで呼気に移る
+    slow: patient.gas ? initialSlowState(patient.gas, settings, base) : null, // 遅い状態（肺胞気の PO2、PaCO2 など）
     breathSettings: settings, // いまの呼吸が始まったときの設定（吸気の途中で設定が変わっても、その吸気は元の設定で終える）
   };
 }
@@ -144,6 +148,21 @@ export function step(prev, patient, settings, deviceId, effort = null) {
     }
   }
 
+  // 遅い状態（ガスの貯蔵）を進める。1 呼吸が終わるたびに、その呼吸の換気で進める。
+  // 呼吸が長く止まっているとき（無呼吸）は、換気 0 として一定の間隔で進める
+  if (patient.gas) {
+    let slow = s.slow ?? initialSlowState(patient.gas, settings, mode.baselinePressure(settings), s.n);
+    const dtSec = (s.n - slow.lastN) * DT;
+    if (completed) {
+      slow = advanceSlowState(slow, { dtSec, alvVolL: alveolarVolume(completed.vte, patient.gas), palvMean: completed.palvMean }, patient.gas, settings.fio2);
+      slow = { ...slow, lastN: s.n };
+    } else if (s.n - slow.lastN >= toSteps(APNEA_ADVANCE)) {
+      slow = advanceSlowState(slow, { dtSec, alvVolL: 0, palvMean: slow.palvMean }, patient.gas, settings.fio2);
+      slow = { ...slow, lastN: s.n };
+    }
+    s = { ...s, slow };
+  }
+
   // 2. いまの相で 1 ステップ積分する
   const t0 = s.n * DT;
   const t1 = (s.n + 1) * DT;
@@ -204,7 +223,7 @@ export function step(prev, patient, settings, deviceId, effort = null) {
   // 3. 集計
   let breath = s.breath;
   if (breath) {
-    breath = accumulate(breath, { phase: s.phase, paw: paw1, flow: flow1, v: v1, occluded, limited, terminated });
+    breath = accumulate(breath, { phase: s.phase, paw: paw1, flow: flow1, v: v1, palv: v1 / patient.c, occluded, limited, terminated });
     // model: 2 レベルの圧のモードでは、自発呼吸を呼吸筋圧 Pmus の立ち上がりで数える。
     //        実機は流量の変化で検出するが、圧の切り替えによる流量と重なると数え落とすため、単純化した
     if (mode.countsSpontaneousEfforts && !(pmusOfT(t0) > 0) && pmus1 > 0) {
@@ -227,6 +246,7 @@ export function step(prev, patient, settings, deviceId, effort = null) {
   // vBreath：いまの呼吸の始まりからの容量（人工呼吸器の容量波形はこの値）
   const sample = {
     t: t1, paw: paw1, flow: flow1, v: v1, vBreath: breath ? v1 - breath.vStart : 0, pmus: pmus1, phase: s.phase, limited,
+    phaseTime: (s.phaseSteps + 1) * DT, // いまの相に入ってからの時間（カプノグラムの形に使う）
   };
   return { state: next, sample, breath: completed };
 }
