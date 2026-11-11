@@ -30,7 +30,7 @@ const INITIAL = {
   targetVt: 500,
   ps: 10, etsPct: 25,
   pHigh: 25, pLow: 5, tHigh: 4.0, tLow: 0.6,
-  pLimit: 40, pawHighAlarm: 45,
+  pPeakAlarm: 40, pLimit: 40, pawHighAlarm: 45,
   holdTime: DEFAULT_HOLD_TIME,
 };
 
@@ -46,7 +46,7 @@ function toEngine(u) {
       targetVt: mlToL(u.targetVt),
       ps: u.ps, etsPct: u.etsPct,
       pHigh: u.pHigh, pLow: u.pLow, tHigh: u.tHigh, tLow: u.tLow,
-      pLimit: u.pLimit, pawHighAlarm: u.pawHighAlarm,
+      pPeakAlarm: u.pPeakAlarm, pLimit: u.pLimit, pawHighAlarm: u.pawHighAlarm,
     },
   };
 }
@@ -304,7 +304,10 @@ export default function EngineViewer() {
           <fieldset>
             <legend>機種ごとの圧の上限ルール</legend>
             {u.device === 'pb980' && (
-              <p className="ev-note">PB980 風：VC+（PRVC）の目標吸気圧は PEEP + {limits.prvcMinAbovePeep} cmH2O を下回らない。BiLevel の PH は PL + {limits.bilevelMinDelta} cmH2O 以上。</p>
+              <>
+                <Slider label="PEAK アラーム上限" unit="cmH2O" value={u.pPeakAlarm} min={10} max={100} step={1} onChange={set('pPeakAlarm')} />
+                <p className="ev-note">PB980 風：VC+（PRVC）の目標吸気圧は PEEP + {limits.prvcMinAbovePeep} cmH2O 以上、{limits.prvcMaxPressure} cmH2O 以下（PEAK アラーム上限 − 3）。BiLevel の PH は PL + {limits.bilevelMinDelta} cmH2O 以上。</p>
+              </>
             )}
             {u.device === 'hamilton' && (
               <>
@@ -315,7 +318,7 @@ export default function EngineViewer() {
             {u.device === 'evita' && (
               <>
                 <Slider label="アラーム上限 Paw high" unit="cmH2O" value={u.pawHighAlarm} min={15} max={65} step={1} onChange={set('pawHighAlarm')} />
-                <p className="ev-note">Evita V800 風：最大気道内圧は {limits.pressureCap} cmH2O（アラーム上限 − 5）。</p>
+                <p className="ev-note">Evita V800 風：最大気道内圧は {limits.pressureCap} cmH2O（アラーム上限 − 5）。AutoFlow（PRVC）の最小吸気圧は、トリガなしで PEEP + {limits.prvcMinAbovePeep} cmH2O、患者トリガで PEEP + {limits.prvcMinAbovePeepTriggered} cmH2O。</p>
               </>
             )}
           </fieldset>

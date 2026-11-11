@@ -47,6 +47,28 @@ describe('PRVC', () => {
     }
   });
 
+  it('pb980：目標吸気圧は PEAK アラーム上限 − 3 まで（硬い肺で目標 VT に届かない）', () => {
+    const stiff = { c: 0.02, rInsp: 10, rExp: 10 };
+    const { breaths, samples } = simulate(stiff, { ...base, pPeakAlarm: 25 }, 'pb980', 60);
+    expect(Math.max(...samples.map((s) => s.paw))).toBeLessThanOrEqual(22 + 1e-9);
+    const last = breaths.at(-1);
+    expect(last.pip).toBeCloseTo(22, 6);
+    expect(last.vti).toBeLessThan(0.5 * 0.95);
+    expect(last.pressureLimited).toBe(true);
+  });
+
+  it('evita（AutoFlow）：最小吸気圧はトリガなしで PEEP + 3、患者トリガで PEEP + 0.1', () => {
+    const soft = { c: 0.2, rInsp: 5, rExp: 5 };
+    const s = { ...base, targetVt: 0.1, pawHighAlarm: 45, triggerFlow: 2 / 60 };
+    const untriggered = simulate(soft, s, 'evita', 60).breaths.at(-1);
+    expect(untriggered.trigger).toBe('time');
+    expect(untriggered.targetDeltaP).toBeCloseTo(DEVICE_RULES.evita.autoFlowMinAbovePeepUntriggered, 9);
+    // 強い自発努力では、努力だけで目標 VT を超えるので、吸気圧は患者トリガの下限まで下がる
+    const triggered = simulate(soft, s, 'evita', 90, { pmusMax: 10, rate: 20, tiEffort: 0.8 }).breaths.filter((b) => b.trigger === 'patient');
+    expect(triggered.length).toBeGreaterThan(5);
+    expect(triggered.at(-1).targetDeltaP).toBeCloseTo(DEVICE_RULES.evita.autoFlowMinAbovePeepTriggered, 9);
+  });
+
   it('hamilton：最小吸気圧は 5', () => {
     const soft = { c: 0.2, rInsp: 5, rExp: 5 };
     const { breaths } = simulate(soft, { ...base, targetVt: 0.3, pLimit: 40 }, 'hamilton', 60);

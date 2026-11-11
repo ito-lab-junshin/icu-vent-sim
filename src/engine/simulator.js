@@ -63,7 +63,7 @@ function beginInspiration(s, trigger, settings, limits) {
     completed = finalizeBreath(s.breath, s.v);
     if (completed.mode === s.modeId) modeState = mode.afterBreath(modeState, completed, settings, limits);
   }
-  const prepared = mode.prepareBreath(modeState, settings, limits);
+  const prepared = mode.prepareBreath(modeState, settings, limits, trigger);
   const type = s.modeId === 'PSV' ? 'spontaneous' : trigger === 'patient' ? 'assisted' : 'mandatory';
   const breath = newBreath({
     index: s.breathCount,

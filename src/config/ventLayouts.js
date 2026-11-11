@@ -27,6 +27,8 @@ export const MODE_NAMES = {
 export const DEVICE_RULES = {
   pb980: {
     vcPlusMinPressureAbovePeep: 3, // VC+ の目標吸気圧は PEEP + 3 cmH2O を下回らない（VC+ QRG）
+    vcPlusMaxBelowPeakAlarm: 3,    // VC+ の目標吸気圧は PEAK アラーム上限 − 3 cmH2O まで（取扱説明書・QRG。2026-11-11 伊藤先生確認）
+    maxCircuitPressure: 125,       // 最大回路内圧は 125 cmH2O 未満（同上。エンジンではまだ使っていない）
     bilevelMinPhAbovePl: 5,        // BiLevel では PH は PL より 5 cmH2O 以上高い（BiLevel QRG）
     bilevelPsReference: 'PL',      // BiLevel の PS は PL 基準（BiLevel QRG）
     status: 'verified',
@@ -47,6 +49,9 @@ export const DEVICE_RULES = {
     // 吸気圧の上限（17.7）：Pmax/Paw high autoset が無効（工場出荷時）のとき、最大気道内圧は Paw high（アラーム上限）− 5 に制限
     // 有効にすると治療バーに Pmax コントロールが表示され、Pmax がアラーム上限と連動する
     maxPressureBelowPawHigh: 5,
+    // AutoFlow の最小吸気圧（AutoFlow の動作原理。2026-11-11 伊藤先生確認）
+    autoFlowMinAbovePeepUntriggered: 3,  // トリガなしの強制換気：PEEP + 3
+    autoFlowMinAbovePeepTriggered: 0.1,  // トリガありの強制換気・自発呼吸：PEEP + 0.1
     pmaxAutosetDefault: false,
     autoFlowModes: ['VC-CMV', 'VC-AC', 'VC-SIMV', 'VC-MMV'], // AutoFlow は従量式の各モードで使える（7.2 の表）
     // 設定範囲（成人、16.2 Set values）。シミュレータの設定上限・下限に使う

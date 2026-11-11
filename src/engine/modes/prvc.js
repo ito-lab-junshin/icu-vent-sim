@@ -23,12 +23,16 @@ function nextDeltaP(deltaP, targetVt, measuredVt) {
 }
 
 // 機種ルールの範囲に収める。上限と下限がぶつかるときは上限を優先する（圧を上げない側）
-function bound(deltaP, settings, limits) {
+function bound(deltaP, settings, limits, trigger) {
   let d = deltaP;
+  // 患者トリガの呼吸で下限を分ける機種（Evita の AutoFlow）では、そちらの値を使う
+  const min = trigger === 'patient' && limits.prvcMinAbovePeepTriggered != null
+    ? limits.prvcMinAbovePeepTriggered
+    : limits.prvcMinAbovePeep;
   let pressureLimited = false;
   let minPressureApplied = false;
-  if (limits.prvcMinAbovePeep != null && d < limits.prvcMinAbovePeep) {
-    d = limits.prvcMinAbovePeep;
+  if (min != null && d < min) {
+    d = min;
     minPressureApplied = true;
   }
   if (limits.prvcMaxPressure != null && settings.peep + d > limits.prvcMaxPressure) {
@@ -45,8 +49,8 @@ export const prvc = {
   baselinePressure: (settings) => settings.peep,
   inspTrigger: timeOrPatientTrigger,
   // 吸気の開始時に、設定や機種が変わっていても範囲に収まるように直す
-  prepareBreath(modeState, settings, limits) {
-    const b = bound(modeState.deltaP, settings, limits);
+  prepareBreath(modeState, settings, limits, trigger) {
+    const b = bound(modeState.deltaP, settings, limits, trigger);
     return {
       modeState: { ...modeState, deltaP: b.deltaP },
       flags: { pressureLimited: b.pressureLimited, minPressureApplied: b.minPressureApplied, settingAdjusted: false },

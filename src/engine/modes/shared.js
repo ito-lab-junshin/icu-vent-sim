@@ -5,7 +5,7 @@
 //   init(settings, limits)      モード固有の状態（PRVC の吸気圧など）
 //   baselinePressure(settings)  呼気弁の圧（PEEP、APRV では Plow）
 //   inspTrigger(ctx)            吸気を始めるなら 'time' か 'patient'、始めないなら null
-//   prepareBreath(modeState, settings, limits)  吸気の開始時に呼ぶ。{ modeState, flags } を返す
+//   prepareBreath(modeState, settings, limits, trigger)  吸気の開始時に呼ぶ。{ modeState, flags } を返す
 //   inspControl(ctx)            吸気中の 1 ステップの制御。
 //                               { type: 'flow', at(tau) }、{ type: 'pressure', at(tau) }、{ type: 'occluded' } のどれか
 //                               （tau は吸気開始からの時間）

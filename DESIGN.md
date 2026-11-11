@@ -196,7 +196,7 @@ Paw(t) = V(t) / C + R × V'(t) + PEEPtotal − Pmus(t)
 | 物理キー | 吸気ポーズ、呼気ポーズ、用手換気、アラーム消音・リセット、回転ノブ |
 
 設定の流れは「性別と身長で PBW → 換気タイプ → Mode（A/C、SIMV、SPONT、BiLevel）→ 強制換気の種類（PC、VC、VC+）または自発換気の種類（PS など）→ トリガー → 主要設定 → 確定」。
-機種の動作として、VC+ の目標吸気圧は PEEP + 3 cmH2O を下回らない、BiLevel の PH は PL より 5 cmH2O 以上高い、BiLevel の PS は PL 基準、を再現する。
+機種の動作として、VC+ の目標吸気圧は PEEP + 3 cmH2O を下回らず、PEAK アラーム上限 − 3 cmH2O を超えない、BiLevel の PH は PL より 5 cmH2O 以上高い、BiLevel の PS は PL 基準、を再現する。
 
 #### Hamilton C6 風（出典：HAMILTON-C6 取扱説明書 ソフトウェア 1.2.x、10197573/00、2022）
 
@@ -243,6 +243,7 @@ Evita の圧の上限と、シミュレータで再現する動作（17.7）：
 
 - 工場出荷時（Pmax/Paw high autoset が無効）は、最大気道内圧がアラーム上限 Paw high より 5 低い値に制限される
 - autoset を有効にすると、治療バーに Pmax コントロールが表示され、Pmax がアラーム上限と連動する
+- AutoFlow の最小吸気圧は、トリガなしの強制換気で PEEP + 3、トリガありの強制換気・自発呼吸で PEEP + 0.1。上限は Pmax による制限
 - AutoFlow は従量式の各モード（VC-CMV、VC-AC、VC-SIMV、VC-MMV）で使える拡張設定
 
 機種による圧の上限ルールの違い（3 機種を切り替えて学べる点）：PB980 の VC+ は「PEEP + 3 を下回らない」、Hamilton C6 は「アラーム上限 = リミット圧 + 10 で連動」、Evita は「アラーム上限 − 5 で制限（既定）」。
