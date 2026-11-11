@@ -22,12 +22,20 @@ export const REFERENCES = {
     source: 'Puritan Bennett 980 取扱説明書・クイックガイド — VC+ の目標吸気圧は PEAK アラーム上限 − 3 cmH2O まで（2026-11-11 伊藤先生確認。ページ番号は未記録）',
   },
   pb980SettingRanges: {
+    status: 'verified',
+    source: 'Puritan Bennett 980 カタログ（ct-va-980x(m4)2205、RMS_2019_0547-A-2）14 ページ「コントロール」「アラーム」の表（成人／小児）。2026-11-11 伊藤先生提供',
+  },
+  pb980SettingStepsInitials: {
     status: 'unverified',
-    source: 'PB980 風の画面の設定範囲・刻み・初期値（ventLayouts.js の PB980_SETTINGS）— 画面を動かすための仮の値。PB980 取扱説明書の設定範囲の表で確認予定',
+    source: 'PB980 風の画面の設定の刻み・初期値、身長の範囲、立ち上がり時間（秒）の範囲、TL の上限 — カタログに記載がなく、画面を動かすための仮の値。取扱説明書で確認予定',
+  },
+  pb980AlarmNames: {
+    status: 'verified',
+    source: 'Puritan Bennett 980 カタログ 14 ページ「アラーム」の表の名称（無呼吸時間、回路内圧上限、呼気分時換気量下限、呼吸回数上限）。アラームが 3 段階であることは 4 ページ',
   },
   pb980Alarms: {
     status: 'unverified',
-    source: 'PB980 風の画面のアラームの名称・優先度の色・消音の時間・リセットの動作 — 一般的な名称と仮の値。PB980 取扱説明書のアラームの章で確認予定',
+    source: 'PB980 風の画面のアラームの優先度の割り当てと色・消音の時間・リセットの動作 — カタログに記載がなく、仮の値。取扱説明書のアラームの章で確認予定',
   },
   pb980PeakAlarmTruncation: {
     status: 'unverified',

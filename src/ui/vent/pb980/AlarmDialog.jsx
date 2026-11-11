@@ -14,10 +14,10 @@ export default function AlarmDialog({ tileProps, onClose }) {
       <div className="pb-tiles">
         {KEYS.map((k) => <SettingTile key={k} id={k} {...tileProps(k)} />)}
       </div>
-      <p className="pb-panel-note"><Unverified refKey="pb980SettingRanges" what="＊の設定の範囲・刻み・初期値" /></p>
-      <p className="pb-panel-note"><Unverified refKey="pb980Alarms" what="アラームの名称・優先度の色・消音の時間・リセットの動作（一般的な名称で、機種の表記ではない）" /></p>
-      <p className="pb-panel-note"><Unverified refKey="pb980PeakAlarmTruncation" what="気道内圧上限に達すると、その吸気を打ち切る動作" /></p>
-      <p className="pb-panel-note">VC+ の目標吸気圧は、気道内圧上限 − 3 cmH2O までです（確認済み）。音は出ません。</p>
+      <p className="pb-panel-note"><Unverified refKey="pb980SettingStepsInitials" what="＊の設定の刻み・初期値（範囲と名称はカタログで確認済み）" /></p>
+      <p className="pb-panel-note"><Unverified refKey="pb980Alarms" what="アラームの優先度の割り当てと色・消音の時間・リセットの動作" /></p>
+      <p className="pb-panel-note"><Unverified refKey="pb980PeakAlarmTruncation" what="回路内圧上限に達すると、その吸気を打ち切る動作" /></p>
+      <p className="pb-panel-note">VC+ の目標吸気圧は、回路内圧上限 − 3 cmH2O までです（確認済み）。音は出ません。</p>
     </div>
   );
 }

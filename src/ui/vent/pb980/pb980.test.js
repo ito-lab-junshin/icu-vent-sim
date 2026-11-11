@@ -78,12 +78,50 @@ describe('PB980 風：設定の換算（settingsMap）', () => {
 });
 
 describe('PB980 風：確認できていない値の表示', () => {
-  it('設定範囲、アラーム、吸気の打ち切りは、確認できるまで「参考値（未確認）」の表示が必要', () => {
+  it('刻み・初期値、アラームの優先度など、吸気の打ち切りは、確認できるまで「参考値（未確認）」の表示が必要', () => {
     expect(UNVERIFIED_LABEL).toBe('参考値（未確認）');
-    expect(PB980_SETTINGS.status).toBe(REFERENCES.pb980SettingRanges.status);
-    for (const key of ['pb980SettingRanges', 'pb980Alarms', 'pb980PeakAlarmTruncation']) expect(needsUnverifiedLabel(key), key).toBe(true);
+    expect(PB980_SETTINGS.rangeStatus).toBe(REFERENCES.pb980SettingRanges.status);
+    expect(PB980_SETTINGS.stepInitialStatus).toBe(REFERENCES.pb980SettingStepsInitials.status);
+    for (const key of ['pb980SettingStepsInitials', 'pb980Alarms', 'pb980PeakAlarmTruncation']) expect(needsUnverifiedLabel(key), key).toBe(true);
+    // カタログで確認済みの項目には表示を付けない
+    for (const key of ['pb980SettingRanges', 'pb980AlarmNames']) expect(needsUnverifiedLabel(key), key).toBe(false);
+    for (const key of Object.keys(PB980_SETTINGS.unverifiedRange)) expect(defs[key], key).toBeTruthy();
     expect(needsUnverifiedLabel('pbwFormula')).toBe(false);
     expect(needsUnverifiedLabel('登録のない項目')).toBe(true);
+  });
+});
+
+describe('PB980 風：設定範囲（カタログ 14 ページの値）', () => {
+  it('主要設定とアラームの範囲', () => {
+    const range = (k) => [defs[k].min, defs[k].max];
+    expect(range('f')).toEqual([1, 100]);
+    expect(range('vt')).toEqual([25, 2500]);
+    expect(range('vmax')).toEqual([3, 150]);
+    expect(range('tpl')).toEqual([0, 2]);
+    expect(range('pi')).toEqual([5, 90]);
+    expect(range('ti')).toEqual([0.2, 8]);
+    expect(range('psupp')).toEqual([0, 70]);
+    expect(range('esens')).toEqual([1, 80]);
+    expect(range('vsens')).toEqual([0.2, 20]);
+    expect(range('peep')).toEqual([0, 45]);
+    expect(range('ph')).toEqual([5, 90]);
+    expect(range('pl')).toEqual([0, 45]);
+    expect(range('th')).toEqual([0.2, 30]);
+    expect(defs.tl.min).toBe(0.2);
+    expect(range('o2')).toEqual([21, 100]);
+    expect(range('pPeak')).toEqual([7, 100]);
+    expect(range('mveLow')).toEqual([0.05, 60]);
+    expect(range('rrHigh')).toEqual([10, 110]);
+    expect(range('apnea')).toEqual([10, 60]);
+  });
+
+  it('初期値は、刻みで動かしても同じ値に戻れる（範囲の下端から刻みを数える）', () => {
+    for (const [key, def] of Object.entries(defs)) {
+      if (def.type !== 'number') continue;
+      let s = createSettings(defs);
+      s = changeSetting(s, key, def.initial, defs);
+      expect(s.pending, key).toEqual({});
+    }
   });
 });
 

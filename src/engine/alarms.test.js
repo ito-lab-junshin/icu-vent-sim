@@ -9,14 +9,14 @@ describe('alarms（受け入れ条件 11：条件を満たす間だけ一覧に�
   it('正常ではアラームなし', () => {
     expect(ids({ limits, lastBreath: {}, summary: ok, timeSinceInspStart: 2 })).toEqual([]);
   });
-  it('気道内圧上限：吸気が打ち切られた呼吸', () => {
+  it('回路内圧上限：吸気が打ち切られた呼吸', () => {
     expect(ids({ limits, lastBreath: { highPressureTerminated: true }, summary: ok, timeSinceInspStart: 2 })).toEqual(['highPressure']);
   });
   it('無呼吸：最後の吸気開始から設定時間を超えた', () => {
     expect(ids({ limits, lastBreath: null, summary: ok, timeSinceInspStart: 20.5 })).toEqual(['apnea']);
     expect(ids({ limits, lastBreath: null, summary: ok, timeSinceInspStart: 19.5 })).toEqual([]);
   });
-  it('分時換気量下限、呼吸回数上限', () => {
+  it('呼気分時換気量下限、呼吸回数上限', () => {
     expect(ids({ limits, lastBreath: {}, summary: { rrTotal: 12, mve: 2.9, duration: 60 }, timeSinceInspStart: 1 })).toEqual(['lowMinuteVolume']);
     expect(ids({ limits, lastBreath: {}, summary: { rrTotal: 36, mve: 9, duration: 60 }, timeSinceInspStart: 1 })).toEqual(['highRate']);
   });

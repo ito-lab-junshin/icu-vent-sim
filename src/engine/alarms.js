@@ -1,5 +1,5 @@
 // アラームの判定（純粋関数）。設定された上限・下限と実測値から、鳴っているアラームの一覧を返す。
-// アラームの名称・優先度は一般的なもので、機種の表記ではない（PB980 の表記は取扱説明書で未確認）。
+// 名称は PB980 カタログ（14 ページ「アラーム」の表）の表記。優先度の割り当ては仮のもので、取扱説明書で未確認。
 //
 // limits = { pPeakAlarm, mveLow（L/min）, rrHigh（/min）, apneaTime（s） }  ない項目は判定しない
 // lastBreath = 直近に終わった呼吸の実測値（breathMetrics.js）または null
@@ -10,9 +10,9 @@
 export const ALARM_MIN_WINDOW = 15;
 
 export const ALARMS = {
-  highPressure: { label: '気道内圧上限', priority: 'high' },
+  highPressure: { label: '回路内圧上限', priority: 'high' },
   apnea: { label: '無呼吸', priority: 'high' },
-  lowMinuteVolume: { label: '分時換気量下限', priority: 'medium' },
+  lowMinuteVolume: { label: '呼気分時換気量下限', priority: 'medium' },
   highRate: { label: '呼吸回数上限', priority: 'medium' },
   pressureLimited: { label: '吸気圧が上限で制限', priority: 'low' },
 };

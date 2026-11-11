@@ -26,7 +26,7 @@ export default function SetupDialog({ values, defs, pbw, onChoose, tileProps, on
             <SettingTile id="height" {...tileProps('height')} />
             <p className="pb-pbw">PBW <strong>{pbw.toFixed(1)}</strong> kg</p>
           </div>
-          <p className="pb-panel-note"><Unverified refKey="pb980SettingRanges" what="身長の範囲・刻み・初期値" /></p>
+          <p className="pb-panel-note"><Unverified refKey="pb980SettingStepsInitials" what="身長の範囲・刻み・初期値" /></p>
         </div>
         <div>
           <h4>2. Mode</h4>

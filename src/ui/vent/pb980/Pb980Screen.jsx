@@ -101,7 +101,7 @@ export default function Pb980Screen() {
         {status.phase === 'inspHold' && <span className="pb-hold">吸気ポーズ中</span>}
         {status.phase === 'expHold' && <span className="pb-hold">呼気ポーズ中</span>}
         <span className="pb-alarmbar-note">
-          <Unverified refKey="pb980Alarms" what="アラームの名称・色・消音の時間" />
+          <Unverified refKey="pb980Alarms" what="アラームの優先度と色・消音の時間" />
           {alarms.some((a) => a.id === 'highPressure') && <Unverified refKey="pb980PeakAlarmTruncation" what="吸気の打ち切り" />}
         </span>
       </div>

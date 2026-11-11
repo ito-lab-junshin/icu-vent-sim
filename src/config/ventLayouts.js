@@ -79,48 +79,57 @@ export const DEVICE_RULES = {
 };
 
 // PB980 風の画面の設定項目（Phase 2）。
-// 範囲・刻み・初期値は、画面を動かすために置いた仮の値で、PB980 の仕様ではない。
-// 原文で確認できていないので status は 'unverified' とし、画面に「参考値（未確認）」と表示する（references.js の pb980SettingRanges）。
-// 取扱説明書の設定範囲の表を確認したら、ここを書き換えて status を 'verified' にする（docs/REFERENCES.md）。
+// 範囲（min、max）：Puritan Bennett 980 カタログ（ct-va-980x(m4)2205、RMS_2019_0547-A-2）14 ページの
+//   「コントロール」「アラーム」の表（成人／小児）で確認済み（2026-11-11、伊藤先生提供）。
+//   ただし unverifiedRange に挙げた項目は、カタログに範囲がない（または単位が違う）ので未確認。
+// 刻み（step）と初期値（initial）：カタログに記載がなく、画面を動かすための仮の値。未確認。
+// 画面では、未確認の値に「参考値（未確認）」と表示する（references.js の pb980SettingStepsInitials ほか）。
 // 記号（f、VT、V̇max など）は DESIGN.md 5.1 と PB980 Quick Reference Guide の表記。
 const num = (label, title, unit, min, max, step, initial) => ({ type: 'number', label, title, unit, min, max, step, initial });
 const choice = (label, title, options, initial) => ({ type: 'choice', label, title, options, initial });
 export const PB980_SETTINGS = {
-  status: 'unverified',
+  rangeStatus: 'verified',
+  stepInitialStatus: 'unverified',
+  // 範囲も未確認の項目
+  unverifiedRange: {
+    height: 'カタログに身長の範囲の記載がない',
+    rise: 'カタログの設定は「立ち上がり時間 %（1〜100 %）」。秒との対応が分からないので、秒で仮に設定している',
+    tl: 'カタログは「0.2 秒以上」で、上限の記載がない',
+  },
   note: '仮の値で、機種の仕様ではない',
   items: {
     // 患者
     sex: choice('性別', '性別', [{ value: 'male', label: '男性' }, { value: 'female', label: '女性' }], 'male'),
     height: num('身長', '身長', 'cm', 130, 200, 1, 170),
-    // 換気の種類
+    // 換気の種類（カタログ：モード A/C、SIMV、SPONT、BiLevel。強制呼吸タイプ VC、PC、VC+）
     mode: choice('Mode', 'Mode', [
       // 並びは PB980 と同じ（A/C、SIMV、SPONT、BiLevel）。SIMV はエンジンにないので選べない
       { value: 'AC', label: 'A/C' }, { value: 'SIMV', label: 'SIMV', unsupported: true },
       { value: 'SPONT', label: 'SPONT' }, { value: 'BILEVEL', label: 'BiLevel' },
     ], 'AC'),
     mandatoryType: choice('強制換気の種類', '強制換気の種類', [{ value: 'VC', label: 'VC' }, { value: 'PC', label: 'PC' }, { value: 'VC+', label: 'VC+' }], 'VC'),
-    // 主要設定
-    f: num('f', '呼吸回数', '/min', 1, 60, 1, 12),
-    vt: num('VT', '一回換気量', 'mL', 100, 1500, 10, 500),
-    vmax: num('V̇max', '最大流量', 'L/min', 10, 150, 1, 60),
-    tpl: num('TPL', 'プラトー時間', 's', 0, 2, 0.1, 0.5),
-    flowPattern: choice('流量波形', '流量波形', [{ value: 'square', label: '矩形波' }, { value: 'ramp', label: 'Ramp' }], 'square'),
-    pi: num('PI', '吸気圧（PEEP 上）', 'cmH2O', 5, 60, 1, 15),
-    ti: num('TI', '吸気時間', 's', 0.3, 5, 0.1, 1),
-    psupp: num('PSUPP', 'プレッシャーサポート', 'cmH2O', 0, 40, 1, 10),
-    esens: num('ESENS', '呼気感度', '%', 5, 70, 1, 25),
-    vsens: num('V̇sens', 'フロートリガ感度', 'L/min', 0.5, 15, 0.5, 2),
-    peep: num('PEEP', 'PEEP', 'cmH2O', 0, 30, 1, 5),
-    ph: num('PH', '高圧', 'cmH2O', 5, 60, 1, 25),
-    pl: num('PL', '低圧', 'cmH2O', 0, 30, 1, 5),
-    th: num('TH', '高圧の時間', 's', 0.5, 10, 0.1, 4),
-    tl: num('TL', '低圧の時間', 's', 0.2, 10, 0.1, 0.6),
-    rise: num('立ち上がり', '圧の立ち上がり時間', 's', 0, 0.5, 0.05, 0),
-    o2: num('O2', '酸素濃度', '%', 21, 100, 1, 40),
-    // アラームの設定
-    pPeak: num('気道内圧上限', 'PEAK アラーム上限', 'cmH2O', 10, 100, 1, 40),
-    mveLow: num('分時換気量下限', '分時換気量下限', 'L/min', 0.5, 20, 0.5, 3),
-    rrHigh: num('呼吸回数上限', '呼吸回数上限', '/min', 10, 80, 1, 35),
-    apnea: num('無呼吸時間', '無呼吸時間', 's', 10, 60, 1, 20),
+    // 主要設定（範囲はカタログの値）
+    f: num('f', '呼吸回数', '/min', 1, 100, 1, 12),                    // 1.0〜100 回/min
+    vt: num('VT', '一回換気量', 'mL', 25, 2500, 5, 500),               // 25〜2500 mL
+    vmax: num('V̇max', 'ピークフロー', 'L/min', 3, 150, 1, 60),        // 成人 3〜150 L/min
+    tpl: num('TPL', 'プラトー時間', 's', 0, 2, 0.1, 0.5),              // 0.0〜2.0 秒
+    flowPattern: choice('流量波形', 'フローパターン', [{ value: 'square', label: '矩形波' }, { value: 'ramp', label: 'Ramp' }], 'square'), // 漸減波、矩形波
+    pi: num('PI', 'PC 吸気圧（PEEP 上）', 'cmH2O', 5, 90, 1, 15),      // 5〜90 cmH2O
+    ti: num('TI', '吸気時間', 's', 0.2, 8, 0.1, 1),                    // 0.2〜8.0 秒
+    psupp: num('PSUPP', 'プレッシャーサポート', 'cmH2O', 0, 70, 1, 10), // 0〜70 cmH2O
+    esens: num('ESENS', '呼気感度', '%', 1, 80, 1, 25),                // 1〜80 %
+    vsens: num('V̇sens', 'フロートリガ感度', 'L/min', 0.2, 20, 0.1, 2), // 成人／小児 0.2〜20 L/min
+    peep: num('PEEP', 'PEEP', 'cmH2O', 0, 45, 1, 5),                   // 0〜45 cmH2O
+    ph: num('PH', 'BiLevel 高圧相', 'cmH2O', 5, 90, 1, 25),            // 5〜90 cmH2O
+    pl: num('PL', 'BiLevel 低圧相', 'cmH2O', 0, 45, 1, 5),             // 0〜45 cmH2O
+    th: num('TH', 'BiLevel 高圧相時間', 's', 0.2, 30, 0.1, 4),         // 0.2〜30 秒
+    tl: num('TL', 'BiLevel 低圧相時間', 's', 0.2, 30, 0.1, 0.6),       // 0.2 秒以上（上限は未確認）
+    rise: num('立ち上がり', '圧の立ち上がり時間', 's', 0, 0.5, 0.05, 0), // 未確認（カタログは % 表記）
+    o2: num('O2', '酸素濃度', '%', 21, 100, 1, 40),                    // 21〜100 %
+    // アラームの設定（名称と範囲はカタログの値）
+    pPeak: num('回路内圧上限', '回路内圧上限（PEAK アラーム上限）', 'cmH2O', 7, 100, 1, 40),   // 7〜100 cmH2O
+    mveLow: num('呼気分時換気量下限', '呼気分時換気量下限', 'L/min', 0.05, 60, 0.05, 3),       // 0.05〜60 L/min
+    rrHigh: num('呼吸回数上限', '呼吸回数上限', '/min', 10, 110, 1, 35),                       // 10〜110 回/min または OFF
+    apnea: num('無呼吸時間', '無呼吸時間', 's', 10, 60, 1, 20),                                // 10〜60 秒
   },
 };
