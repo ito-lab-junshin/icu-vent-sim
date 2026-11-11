@@ -8,10 +8,12 @@ import { toSteps } from '../units.js';
 import { timeOrPatientTrigger, rampedPressure } from './shared.js';
 
 // model: 最初の 1 呼吸（試験呼吸）は、ΔP 10 cmH2O の圧規定の呼吸とする。
-//        実機の試験呼吸の方法は機種で異なり、取扱説明書で確認できた範囲では数値を決められない（伊藤先生の確認待ち）
+//        実機の試験呼吸の方法は機種で異なり、取扱説明書で確認できた範囲では数値を決められない
+//        （2026-11-11 伊藤先生が確認し、この値で進めると決定）
 export const PRVC_INITIAL_DELTA_P = 10;
 
-// model: ΔP の調整は 1 呼吸あたり最大 ±3 cmH2O。取扱説明書に数値がない（伊藤先生の確認待ち）
+// model: ΔP の調整は 1 呼吸あたり最大 ±3 cmH2O。取扱説明書に数値がない
+//        （2026-11-11 伊藤先生が確認し、この値と下の比例式で進めると決定）
 export const PRVC_MAX_STEP = 3;
 
 // model: 調整は比例式。次の ΔP = 今の ΔP ×（目標 VT ÷ 測定 VT）。ただし上の調整幅を超えない
