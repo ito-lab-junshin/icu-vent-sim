@@ -27,3 +27,35 @@ body { margin: 0; }
 .vent-evita { background: #262626; }
 .foot { padding: 0.75rem 1.5rem; font-size: 0.85rem; color: #5a6266; border-top: 1px solid var(--line); }
 @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } .vent { grid-row: auto; } }
+
+/* 開発確認用ページ（#engine） */
+.topbar a.dev-link { color: #1a5fb4; }
+.ev { flex: 1; padding: 1rem 1.5rem; }
+.ev-banner { margin: 0 0 1rem; padding: 0.6rem 1rem; background: #fff4ce; border: 1px solid #d9b949; font-weight: 600; }
+.ev-layout { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.ev fieldset { border: 1px solid var(--line); margin: 0 0 0.75rem; padding: 0.5rem 0.75rem 0.75rem; min-width: 0; }
+.ev legend { font-weight: 600; padding: 0 0.25rem; }
+.ev-slider { display: grid; grid-template-columns: 1fr auto; gap: 0 0.5rem; align-items: center; margin-top: 0.4rem; font-size: 0.9rem; }
+.ev-slider input { grid-column: 1 / -1; width: 100%; margin: 0.1rem 0 0; }
+.ev-slider-value { font-variant-numeric: tabular-nums; }
+.ev-note { margin: 0.5rem 0 0; font-size: 0.85rem; color: #5a6266; }
+.ev-buttons { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; }
+.ev button { font: inherit; padding: 0.35rem 0.7rem; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; }
+.ev button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.ev button:focus-visible { outline: 3px solid #4fc3f7; outline-offset: 2px; }
+.ev-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; }
+.ev-toolbar .ev-slider { margin: 0; min-width: 150px; }
+.ev-status { min-height: 1.6rem; margin: 0.5rem 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ev-flag { padding: 0.1rem 0.5rem; border: 1px solid var(--line); font-size: 0.9rem; }
+.ev-warn { background: #fff4ce; border-color: #d9b949; font-weight: 600; }
+.ev-canvas { display: block; width: 100%; height: 480px; background: #12171b; }
+.ev-main, .ev-controls { min-width: 0; }
+.ev-main h2 { font-size: 1rem; margin: 1rem 0 0.25rem; }
+.ev-summary { margin: 0; font-variant-numeric: tabular-nums; }
+.ev-table-wrap { overflow-x: auto; }
+.ev-table { border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ev-table th, .ev-table td { border: 1px solid var(--line); padding: 0.2rem 0.45rem; text-align: right; }
+.ev-table th { background: #eef0ed; }
+.ev-units th { font-weight: 400; font-size: 0.75rem; color: #5a6266; }
+.ev-limited td { background: #fff4ce; }
+@media (max-width: 800px) { .ev-layout { grid-template-columns: minmax(0, 1fr); } .ev-canvas { height: 380px; } }
