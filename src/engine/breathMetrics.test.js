@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { NORMAL, simulate } from './testHelpers.js';
-import { summarizeBreaths } from './breathMetrics.js';
+import { summarizeBreaths, formatIE } from './breathMetrics.js';
 
 describe('breathMetrics', () => {
   const settings = { mode: 'VC-AC', rr: 15, vt: 0.5, flow: 1, flowPattern: 'square', ti: 1.0, peep: 5 };
@@ -22,6 +22,12 @@ describe('breathMetrics', () => {
     expect(s.rrMandatory).toBeCloseTo(15, 6);
     expect(s.rrSpontaneous).toBe(0);
     expect(s.mve).toBeCloseTo(7.5, 1);
+  });
+
+  it('I:E の表示：吸気のほうが長いときは x:1', () => {
+    expect(formatIE(4)).toBe('1:4.0');
+    expect(formatIE(0.15)).toBe('6.7:1');
+    expect(formatIE(null)).toBe('—');
   });
 
   it('呼吸がないときは 0', () => expect(summarizeBreaths([]).rrTotal).toBe(0));

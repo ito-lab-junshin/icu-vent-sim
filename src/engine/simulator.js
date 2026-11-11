@@ -51,6 +51,8 @@ export function createState(patient, settings, deviceId) {
     pendingExpHold: 0,
     holdStepsLeft: 0,
     queuedTrigger: null,
+    pendingManualBreath: false, // 予約された用手換気
+    forceExp: false,            // アラーム上限に達したので、次のステップで呼気に移る
     breathSettings: settings, // いまの呼吸が始まったときの設定（吸気の途中で設定が変わっても、その吸気は元の設定で終える）
   };
 }
@@ -64,7 +66,7 @@ function beginInspiration(s, trigger, settings, limits) {
     if (completed.mode === s.modeId) modeState = mode.afterBreath(modeState, completed, settings, limits);
   }
   const prepared = mode.prepareBreath(modeState, settings, limits, trigger);
-  const type = s.modeId === 'PSV' ? 'spontaneous' : trigger === 'patient' ? 'assisted' : 'mandatory';
+  const type = trigger === 'manual' ? 'mandatory' : s.modeId === 'PSV' ? 'spontaneous' : trigger === 'patient' ? 'assisted' : 'mandatory';
   const breath = newBreath({
     index: s.breathCount,
     modeId: s.modeId,
@@ -81,7 +83,7 @@ function beginInspiration(s, trigger, settings, limits) {
     state: {
       ...s, phase: 'insp', phaseSteps: 0, cycleSteps: 0, started: true,
       modeState: prepared.modeState, breath, breathCount: s.breathCount + 1, queuedTrigger: null,
-      breathSettings: settings,
+      breathSettings: settings, pendingManualBreath: false, forceExp: false,
     },
     completed,
   };
@@ -106,9 +108,10 @@ export function step(prev, patient, settings, deviceId, effort = null) {
 
   // 1. 相の切り替え（1 ステップ前の値で判定する）
   if (s.phase === 'exp') {
-    const trigger = mode.inspTrigger({
+    let trigger = mode.inspTrigger({
       first: !s.started, expSteps: s.phaseSteps, cycleSteps: s.cycleSteps, flow: s.flow, settings,
     });
+    if (!trigger && s.pendingManualBreath) trigger = 'manual';
     if (trigger) {
       if (s.pendingExpHold > 0 && s.breath) {
         s = { ...s, phase: 'expHold', phaseSteps: 0, holdStepsLeft: s.pendingExpHold, pendingExpHold: 0, queuedTrigger: trigger };
@@ -126,7 +129,9 @@ export function step(prev, patient, settings, deviceId, effort = null) {
       inspSteps: s.phaseSteps, tau: s.phaseSteps * DT, flow: s.flow,
       delivered: s.v - s.breath.vStart, breath: s.breath, settings: s.breathSettings, modeState: s.modeState,
     });
-    if (ends) {
+    if (s.forceExp) {
+      s = { ...s, phase: 'exp', phaseSteps: 0, forceExp: false };
+    } else if (ends) {
       if (s.pendingInspHold > 0) {
         s = { ...s, phase: 'inspHold', phaseSteps: 0, holdStepsLeft: s.pendingInspHold, pendingInspHold: 0 };
       } else {
@@ -193,10 +198,13 @@ export function step(prev, patient, settings, deviceId, effort = null) {
     paw1 = alveolarPressure(v1, patient, pmus1);
   }
 
+  // 機種のルール：吸気中に気道内圧がアラーム上限に達したら、その吸気を打ち切る（次のステップで呼気に移る）
+  const terminated = s.phase === 'insp' && limits.inspTerminatePressure != null && paw1 >= limits.inspTerminatePressure - 1e-6;
+
   // 3. 集計
   let breath = s.breath;
   if (breath) {
-    breath = accumulate(breath, { phase: s.phase, paw: paw1, flow: flow1, v: v1, occluded, limited });
+    breath = accumulate(breath, { phase: s.phase, paw: paw1, flow: flow1, v: v1, occluded, limited, terminated });
     // model: 2 レベルの圧のモードでは、自発呼吸を呼吸筋圧 Pmus の立ち上がりで数える。
     //        実機は流量の変化で検出するが、圧の切り替えによる流量と重なると数え落とすため、単純化した
     if (mode.countsSpontaneousEfforts && !(pmusOfT(t0) > 0) && pmus1 > 0) {
@@ -214,8 +222,12 @@ export function step(prev, patient, settings, deviceId, effort = null) {
     cycleSteps: holding ? s.cycleSteps : s.cycleSteps + 1,
     holdStepsLeft: holding ? s.holdStepsLeft - 1 : s.holdStepsLeft,
     breath,
+    forceExp: terminated,
   };
-  const sample = { t: t1, paw: paw1, flow: flow1, v: v1, pmus: pmus1, phase: s.phase, limited };
+  // vBreath：いまの呼吸の始まりからの容量（人工呼吸器の容量波形はこの値）
+  const sample = {
+    t: t1, paw: paw1, flow: flow1, v: v1, vBreath: breath ? v1 - breath.vStart : 0, pmus: pmus1, phase: s.phase, limited,
+  };
   return { state: next, sample, breath: completed };
 }
 

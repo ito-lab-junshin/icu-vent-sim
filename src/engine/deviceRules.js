@@ -9,6 +9,7 @@ import { DEVICE_RULES } from '../config/ventLayouts.js';
 //   prvcMinAbovePeepTriggered  患者トリガの呼吸での下限（機種が区別する場合のみ。null なら上と同じ）
 //   prvcMaxPressure   PRVC の吸気圧（絶対値）の上限
 //   bilevelMinDelta   2 レベルの圧で、高圧が低圧より最低これだけ高い
+//   inspTerminatePressure  吸気中に気道内圧がこの値に達したら、その吸気を打ち切る
 //
 // 使う設定値：pb980 は settings.pPeakAlarm（PEAK アラーム上限）、hamilton は settings.pLimit（リミット圧）、
 //             evita は settings.pawHighAlarm（アラーム上限 Paw high）
@@ -23,6 +24,7 @@ export function resolveDeviceLimits(deviceId, settings) {
     prvcMinAbovePeepTriggered: null,
     prvcMaxPressure: null,
     bilevelMinDelta: null,
+    inspTerminatePressure: null,
   };
   if (deviceId === 'pb980') {
     out.prvcMinAbovePeep = rules.vcPlusMinPressureAbovePeep;
@@ -30,6 +32,7 @@ export function resolveDeviceLimits(deviceId, settings) {
     if (settings.pPeakAlarm != null) {
       out.alarmUpper = settings.pPeakAlarm;
       out.prvcMaxPressure = settings.pPeakAlarm - rules.vcPlusMaxBelowPeakAlarm;
+      if (rules.peakAlarmTruncatesInspiration) out.inspTerminatePressure = settings.pPeakAlarm;
     }
   } else if (deviceId === 'hamilton') {
     out.prvcMinAbovePeep = rules.apvMinInspPressure;

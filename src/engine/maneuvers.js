@@ -18,4 +18,10 @@ export function requestExpHold(state, seconds = DEFAULT_HOLD_TIME) {
   return { ...state, pendingExpHold: toSteps(seconds) };
 }
 
+// 用手換気：呼気中に呼ぶと、次のステップで、いまの設定の換気を 1 回送る。吸気中やホールド中は何もしない
+export function requestManualBreath(state) {
+  if (state.phase !== 'exp') return state;
+  return { ...state, pendingManualBreath: true };
+}
+
 export const isHolding = (state) => state.phase === 'inspHold' || state.phase === 'expHold';

@@ -9,6 +9,7 @@ export function newBreath({ index, modeId, trigger, type, tStart, vStart, peepSe
     pressureLimited: flags.pressureLimited,
     minPressureApplied: flags.minPressureApplied,
     settingAdjusted: flags.settingAdjusted,
+    highPressureTerminated: false,
     steps: 0, sumPaw: 0,
     inspSteps: 0, pauseSteps: 0, expSteps: 0, holdSteps: 0,
     pip: -Infinity, flowAtPip: 0, peakFlow: 0, endInspFlow: 0,
@@ -23,6 +24,7 @@ export function accumulate(b, sample) {
   n.steps += 1;
   n.sumPaw += sample.paw;
   if (sample.limited) n.pressureLimited = true;
+  if (sample.terminated) n.highPressureTerminated = true;
   if (sample.phase === 'insp') {
     n.inspSteps += 1;
     n.vEndInsp = sample.v;
@@ -62,7 +64,7 @@ export function finalizeBreath(b, vEnd) {
   return {
     index: b.index,
     mode: b.modeId,
-    trigger: b.trigger, // 'time' | 'patient'
+    trigger: b.trigger, // 'time' | 'patient' | 'manual'（用手換気）
     type: b.type,       // 'mandatory'（強制）| 'assisted'（補助）| 'spontaneous'（自発）
     tStart: b.tStart,
     pip: b.pip,
@@ -88,8 +90,15 @@ export function finalizeBreath(b, vEnd) {
     pressureLimited: b.pressureLimited,
     minPressureApplied: b.minPressureApplied,
     settingAdjusted: b.settingAdjusted,
+    highPressureTerminated: b.highPressureTerminated, // アラーム上限で吸気が打ち切られた
     spontCount: b.spontCount, // 2 レベルの圧のモードで、1 周期のあいだに数えた自発呼吸
   };
+}
+
+// I:E の表示。ieRatio は Te ÷ Ti。吸気のほうが長いとき（APRV など）は「x:1」と書く
+export function formatIE(ieRatio) {
+  if (ieRatio == null || !Number.isFinite(ieRatio) || ieRatio <= 0) return '—';
+  return ieRatio >= 1 ? `1:${ieRatio.toFixed(1)}` : `${(1 / ieRatio).toFixed(1)}:1`;
 }
 
 // 直近 windowSec 秒の呼吸から、呼吸回数（強制・自発）と分時換気量をまとめる
@@ -102,7 +111,7 @@ export function summarizeBreaths(breaths, windowSec = 60) {
     duration += breaths[i].ttot;
   }
   const perMin = (x) => (x / duration) * 60;
-  const mandatory = picked.filter((b) => b.trigger === 'time').length;
+  const mandatory = picked.filter((b) => b.trigger !== 'patient').length; // 時間と用手換気
   const spontaneous = picked.filter((b) => b.trigger === 'patient').length + picked.reduce((a, b) => a + b.spontCount, 0);
   return {
     rrTotal: perMin(mandatory + spontaneous),

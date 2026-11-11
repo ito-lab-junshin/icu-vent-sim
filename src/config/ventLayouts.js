@@ -28,6 +28,9 @@ export const DEVICE_RULES = {
   pb980: {
     vcPlusMinPressureAbovePeep: 3, // VC+ の目標吸気圧は PEEP + 3 cmH2O を下回らない（VC+ QRG）
     vcPlusMaxBelowPeakAlarm: 3,    // VC+ の目標吸気圧は PEAK アラーム上限 − 3 cmH2O まで（取扱説明書・QRG。2026-11-11 伊藤先生確認）
+    // PEAK アラーム上限に達したら、その吸気を打ち切って呼気に移る。
+    // 2026-11-11 に伊藤先生の了承を得て Phase 2 で入れた動作。取扱説明書の原文では未確認（references.js の pb980PeakAlarmTruncation）
+    peakAlarmTruncatesInspiration: true,
     maxCircuitPressure: 125,       // 最大回路内圧は 125 cmH2O 未満（同上。エンジンではまだ使っていない）
     bilevelMinPhAbovePl: 5,        // BiLevel では PH は PL より 5 cmH2O 以上高い（BiLevel QRG）
     bilevelPsReference: 'PL',      // BiLevel の PS は PL 基準（BiLevel QRG）
@@ -72,5 +75,47 @@ export const DEVICE_RULES = {
       aprv: { thigh: [0.1, 30], tlow: [0.05, 30], phigh: [1, 95], plow: [0, 50], expTerm: [1, 80] },
     },
     status: 'verified',
+  },
+};
+
+// PB980 風の画面の設定項目（Phase 2）。
+// 範囲・刻み・初期値は、画面を動かすために置いた仮の値（status: 'model'）で、PB980 の仕様ではない。
+// 取扱説明書の設定範囲の表を確認したら、ここを書き換えて status を 'verified' にする（docs/REFERENCES.md）。
+// 記号（f、VT、V̇max など）は DESIGN.md 5.1 と PB980 Quick Reference Guide の表記。
+const num = (label, title, unit, min, max, step, initial) => ({ type: 'number', label, title, unit, min, max, step, initial });
+const choice = (label, title, options, initial) => ({ type: 'choice', label, title, options, initial });
+export const PB980_SETTINGS = {
+  status: 'model',
+  note: '仮の設定範囲（機種の仕様ではない）',
+  items: {
+    // 患者
+    sex: choice('性別', '性別', [{ value: 'male', label: '男性' }, { value: 'female', label: '女性' }], 'male'),
+    height: num('身長', '身長', 'cm', 130, 200, 1, 170),
+    // 換気の種類
+    mode: choice('Mode', 'Mode', [{ value: 'AC', label: 'A/C' }, { value: 'SPONT', label: 'SPONT' }, { value: 'BILEVEL', label: 'BiLevel' }], 'AC'),
+    mandatoryType: choice('強制換気の種類', '強制換気の種類', [{ value: 'VC', label: 'VC' }, { value: 'PC', label: 'PC' }, { value: 'VC+', label: 'VC+' }], 'VC'),
+    // 主要設定
+    f: num('f', '呼吸回数', '/min', 1, 60, 1, 12),
+    vt: num('VT', '一回換気量', 'mL', 100, 1500, 10, 500),
+    vmax: num('V̇max', '最大流量', 'L/min', 10, 150, 1, 60),
+    tpl: num('TPL', 'プラトー時間', 's', 0, 2, 0.1, 0.5),
+    flowPattern: choice('流量波形', '流量波形', [{ value: 'square', label: '矩形波' }, { value: 'ramp', label: 'Ramp' }], 'square'),
+    pi: num('PI', '吸気圧（PEEP 上）', 'cmH2O', 5, 60, 1, 15),
+    ti: num('TI', '吸気時間', 's', 0.3, 5, 0.1, 1),
+    psupp: num('PSUPP', 'プレッシャーサポート', 'cmH2O', 0, 40, 1, 10),
+    esens: num('ESENS', '呼気感度', '%', 5, 70, 1, 25),
+    vsens: num('V̇sens', 'フロートリガ感度', 'L/min', 0.5, 15, 0.5, 2),
+    peep: num('PEEP', 'PEEP', 'cmH2O', 0, 30, 1, 5),
+    ph: num('PH', '高圧', 'cmH2O', 5, 60, 1, 25),
+    pl: num('PL', '低圧', 'cmH2O', 0, 30, 1, 5),
+    th: num('TH', '高圧の時間', 's', 0.5, 10, 0.1, 4),
+    tl: num('TL', '低圧の時間', 's', 0.2, 10, 0.1, 0.6),
+    rise: num('立ち上がり', '圧の立ち上がり時間', 's', 0, 0.5, 0.05, 0),
+    o2: num('O2', '酸素濃度', '%', 21, 100, 1, 40),
+    // アラームの設定
+    pPeak: num('気道内圧上限', 'PEAK アラーム上限', 'cmH2O', 10, 100, 1, 40),
+    mveLow: num('分時換気量下限', '分時換気量下限', 'L/min', 0.5, 20, 0.5, 3),
+    rrHigh: num('呼吸回数上限', '呼吸回数上限', '/min', 10, 80, 1, 35),
+    apnea: num('無呼吸時間', '無呼吸時間', 's', 10, 60, 1, 20),
   },
 };

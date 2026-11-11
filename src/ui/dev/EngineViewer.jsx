@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { VENT_LAYOUTS, MODE_NAMES } from '../../config/ventLayouts.js';
-import { createState, step } from '../../engine/simulator.js';
-import { requestInspHold, requestExpHold, DEFAULT_HOLD_TIME } from '../../engine/maneuvers.js';
-import { summarizeBreaths } from '../../engine/breathMetrics.js';
+import { DEFAULT_HOLD_TIME } from '../../engine/maneuvers.js';
+import { summarizeBreaths, formatIE } from '../../engine/breathMetrics.js';
 import { resolveDeviceLimits } from '../../engine/deviceRules.js';
-import { DT, lpmToLps, lpsToLpm, mlToL, lToMl, complianceFromMl, complianceToMl } from '../../engine/units.js';
+import { lpmToLps, mlToL, lToMl, complianceToMl } from '../../engine/units.js';
+import { useVentSimulation } from '../vent/useVentSimulation.js';
+import WaveformCanvas, { TRACE_PAW, TRACE_FLOW, TRACE_VOLUME_FRC } from '../vent/WaveformCanvas.jsx';
+import PatientPanel, { Slider, PATIENT_INITIAL, toEnginePatient } from './PatientPanel.jsx';
 
 // 開発確認用ページ。計算エンジン（src/engine）の結果を、機種の見た目なしで確かめる。
 // ここの初期値とスライダーの範囲は確認用に置いたもので、機種の既定値やガイドライン値ではない。
@@ -20,8 +22,7 @@ const MODES = [
 
 // 画面の値（表示単位）
 const INITIAL = {
-  // 患者
-  c: 50, rInsp: 10, rExp: 10, pmusMax: 0, effortRate: 15, tiEffort: 0.8,
+  ...PATIENT_INITIAL,
   // 設定
   mode: 'VC-AC', device: 'pb980',
   rr: 12, ti: 1.0, peep: 5, triggerFlow: 2,
@@ -37,8 +38,7 @@ const INITIAL = {
 // 画面の値 → エンジンの内部単位
 function toEngine(u) {
   return {
-    patient: { c: complianceFromMl(u.c), rInsp: u.rInsp, rExp: u.rExp },
-    effort: u.pmusMax > 0 ? { pmusMax: u.pmusMax, rate: u.effortRate, tiEffort: u.tiEffort } : null,
+    ...toEnginePatient(u),
     settings: {
       mode: u.mode, rr: u.rr, ti: u.ti, peep: u.peep, triggerFlow: lpmToLps(u.triggerFlow),
       vt: mlToL(u.vt), flow: lpmToLps(u.flow), flowPattern: u.flowPattern,
@@ -51,173 +51,24 @@ function toEngine(u) {
   };
 }
 
-function Slider({ label, unit, value, min, max, step: st, onChange }) {
-  return (
-    <label className="ev-slider">
-      <span className="ev-slider-label">{label}</span>
-      <input type="range" min={min} max={max} step={st} value={value} onChange={(e) => onChange(Number(e.target.value))} />
-      <span className="ev-slider-value">{value}{unit ? ` ${unit}` : ''}</span>
-    </label>
-  );
-}
-
 const fmt = (x, digits = 1) => (x == null || !Number.isFinite(x) ? '—' : x.toFixed(digits));
 
 const TRACES = [
-  { key: 'paw', label: '圧 Paw（cmH2O）', color: '#f2c14e', get: (s) => s.paw, min: 0, max: 40 },
-  { key: 'flow', label: '流量（L/min）', color: '#5fd38d', get: (s) => lpsToLpm(s.flow), min: -60, max: 60 },
-  { key: 'v', label: '容量（mL、機能的残気量からの増分）', color: '#6cb6ff', get: (s) => lToMl(s.v), min: 0, max: 800 },
+  { ...TRACE_PAW, label: '圧 Paw（cmH2O）' },
+  { ...TRACE_FLOW, label: '流量（L/min）' },
+  { ...TRACE_VOLUME_FRC, label: '容量（mL、機能的残気量からの増分）' },
 ];
-
-function niceStep(range) {
-  const raw = range / 4;
-  const mag = 10 ** Math.floor(Math.log10(raw));
-  const n = raw / mag;
-  return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * mag;
-}
-
-function draw(canvas, samples, tNow) {
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.clientWidth;
-  const h = canvas.clientHeight;
-  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
-  }
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = '#12171b';
-  ctx.fillRect(0, 0, w, h);
-  const left = 52;
-  const right = 10;
-  const plotW = w - left - right;
-  const rowH = h / TRACES.length;
-  const tMin = Math.max(0, tNow - WINDOW);
-  const x = (t) => left + ((t - tMin) / WINDOW) * plotW;
-  ctx.font = '12px system-ui, sans-serif';
-
-  TRACES.forEach((tr, i) => {
-    const top = i * rowH + 22;
-    const bottom = (i + 1) * rowH - 16;
-    let lo = tr.min;
-    let hi = tr.max;
-    for (const s of samples) {
-      const y = tr.get(s);
-      if (y < lo) lo = y;
-      if (y > hi) hi = y;
-    }
-    const stp = niceStep(hi - lo);
-    lo = Math.floor(lo / stp) * stp;
-    hi = Math.ceil(hi / stp) * stp;
-    const y = (val) => bottom - ((val - lo) / (hi - lo)) * (bottom - top);
-
-    // 目盛り
-    ctx.lineWidth = 1;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    for (let g = lo; g <= hi + 1e-9; g += stp) {
-      ctx.strokeStyle = Math.abs(g) < 1e-9 ? '#5b666e' : '#273038';
-      ctx.beginPath();
-      ctx.moveTo(left, y(g));
-      ctx.lineTo(w - right, y(g));
-      ctx.stroke();
-      ctx.fillStyle = '#9aa5ad';
-      ctx.fillText(String(Math.round(g * 10) / 10), left - 6, y(g));
-    }
-    // 時間の目盛り（1 秒ごと）
-    ctx.strokeStyle = '#273038';
-    for (let t = Math.ceil(tMin); t <= tMin + WINDOW; t += 1) {
-      ctx.beginPath();
-      ctx.moveTo(x(t), top);
-      ctx.lineTo(x(t), bottom);
-      ctx.stroke();
-      if (i === TRACES.length - 1) {
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#9aa5ad';
-        ctx.fillText(`${t} s`, x(t), bottom + 9);
-      }
-    }
-    ctx.textAlign = 'left';
-    ctx.fillStyle = tr.color;
-    ctx.fillText(tr.label, left, i * rowH + 11);
-
-    // 波形
-    ctx.strokeStyle = tr.color;
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    let started = false;
-    for (const s of samples) {
-      if (s.t < tMin) continue;
-      const px = x(s.t);
-      const py = y(tr.get(s));
-      if (started) ctx.lineTo(px, py);
-      else {
-        ctx.moveTo(px, py);
-        started = true;
-      }
-    }
-    ctx.stroke();
-  });
-}
 
 const TRIGGER_LABEL = { time: '時間', patient: '患者' };
 const TYPE_LABEL = { mandatory: '強制', assisted: '補助', spontaneous: '自発' };
 
 export default function EngineViewer() {
   const [u, setU] = useState(INITIAL);
-  const [breaths, setBreaths] = useState([]);
-  const [running, setRunning] = useState(true);
-  const [phase, setPhase] = useState('exp');
-  const canvasRef = useRef(null);
-  const uRef = useRef(u);
-  uRef.current = u;
-  const sim = useRef(null);
-  if (sim.current === null) {
-    const e = toEngine(INITIAL);
-    sim.current = { state: createState(e.patient, e.settings, INITIAL.device), samples: [], breaths: [] };
-  }
+  const inputsRef = useRef(null);
+  inputsRef.current = { ...toEngine(u), deviceId: u.device };
+  const { sim, breaths, status, running, setRunning, inspHold, expHold, reset } = useVentSimulation(inputsRef, WINDOW);
+  const phase = status.phase;
   const set = (key) => (value) => setU((prev) => ({ ...prev, [key]: value }));
-
-  const reset = () => {
-    const e = toEngine(uRef.current);
-    sim.current = { state: createState(e.patient, e.settings, uRef.current.device), samples: [], breaths: [] };
-    setBreaths([]);
-  };
-
-  useEffect(() => {
-    let raf = 0;
-    let last = performance.now();
-    let carry = 0;
-    const tick = (now) => {
-      const elapsed = Math.min(0.1, (now - last) / 1000); // タブが裏に回っていた間は進めない
-      last = now;
-      const s = sim.current;
-      if (running) {
-        carry += elapsed;
-        const e = toEngine(uRef.current);
-        let changed = false;
-        while (carry >= DT) {
-          carry -= DT;
-          const r = step(s.state, e.patient, e.settings, uRef.current.device, e.effort);
-          s.state = r.state;
-          s.samples.push(r.sample);
-          if (r.breath) {
-            s.breaths.push(r.breath);
-            changed = true;
-          }
-        }
-        const keep = Math.round(WINDOW / DT) + 1;
-        if (s.samples.length > keep) s.samples.splice(0, s.samples.length - keep);
-        if (s.breaths.length > 60) s.breaths.splice(0, s.breaths.length - 60);
-        if (changed) setBreaths([...s.breaths]);
-        setPhase(s.state.phase);
-      }
-      if (canvasRef.current) draw(canvasRef.current, s.samples, s.state.n * DT);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [running]);
 
   const limits = useMemo(() => resolveDeviceLimits(u.device, toEngine(u).settings), [u]);
   const summary = useMemo(() => summarizeBreaths(breaths), [breaths]);
@@ -232,21 +83,7 @@ export default function EngineViewer() {
 
       <div className="ev-layout">
         <div className="ev-controls">
-          <fieldset>
-            <legend>患者の肺</legend>
-            <Slider label="コンプライアンス C" unit="mL/cmH2O" value={u.c} min={10} max={200} step={1} onChange={set('c')} />
-            <Slider label="吸気抵抗 Rinsp" unit="cmH2O/(L/s)" value={u.rInsp} min={2} max={40} step={1} onChange={set('rInsp')} />
-            <Slider label="呼気抵抗 Rexp" unit="cmH2O/(L/s)" value={u.rExp} min={2} max={40} step={1} onChange={set('rExp')} />
-            <p className="ev-note">時定数 τ = Rexp × C = {fmt((u.rExp * u.c) / 1000, 2)} s</p>
-          </fieldset>
-
-          <fieldset>
-            <legend>自発呼吸（呼吸筋圧 Pmus）</legend>
-            <Slider label="振幅 Pmus" unit="cmH2O" value={u.pmusMax} min={0} max={20} step={1} onChange={set('pmusMax')} />
-            <Slider label="自発呼吸回数" unit="/min" value={u.effortRate} min={5} max={40} step={1} onChange={set('effortRate')} />
-            <Slider label="吸気努力の時間" unit="s" value={u.tiEffort} min={0.4} max={1.5} step={0.1} onChange={set('tiEffort')} />
-            <p className="ev-note">振幅 0 は深い鎮静・筋弛緩の状態</p>
-          </fieldset>
+          <PatientPanel value={u} onChange={(next) => setU((prev) => ({ ...prev, ...next }))} />
 
           <fieldset>
             <legend>モードと機種</legend>
@@ -306,7 +143,7 @@ export default function EngineViewer() {
             {u.device === 'pb980' && (
               <>
                 <Slider label="PEAK アラーム上限" unit="cmH2O" value={u.pPeakAlarm} min={10} max={100} step={1} onChange={set('pPeakAlarm')} />
-                <p className="ev-note">PB980 風：VC+（PRVC）の目標吸気圧は PEEP + {limits.prvcMinAbovePeep} cmH2O 以上、{limits.prvcMaxPressure} cmH2O 以下（PEAK アラーム上限 − 3）。BiLevel の PH は PL + {limits.bilevelMinDelta} cmH2O 以上。</p>
+                <p className="ev-note">PB980 風：VC+（PRVC）の目標吸気圧は PEEP + {limits.prvcMinAbovePeep} cmH2O 以上、{limits.prvcMaxPressure} cmH2O 以下（PEAK アラーム上限 − 3）。BiLevel の PH は PL + {limits.bilevelMinDelta} cmH2O 以上。吸気中に PEAK アラーム上限に達すると、その吸気を打ち切る（参考値・未確認）。</p>
               </>
             )}
             {u.device === 'hamilton' && (
@@ -326,8 +163,8 @@ export default function EngineViewer() {
 
         <div className="ev-main">
           <div className="ev-toolbar">
-            <button type="button" onClick={() => { sim.current.state = requestInspHold(sim.current.state, u.holdTime); }}>吸気ホールド</button>
-            <button type="button" onClick={() => { sim.current.state = requestExpHold(sim.current.state, u.holdTime); }}>呼気ホールド</button>
+            <button type="button" onClick={() => inspHold(u.holdTime)}>吸気ホールド</button>
+            <button type="button" onClick={() => expHold(u.holdTime)}>呼気ホールド</button>
             <Slider label="保持時間" unit="s" value={u.holdTime} min={0.5} max={3} step={0.5} onChange={set('holdTime')} />
             <button type="button" onClick={() => setRunning((r) => !r)}>{running ? '一時停止' : '再開'}</button>
             <button type="button" onClick={reset}>最初からやり直す</button>
@@ -335,11 +172,12 @@ export default function EngineViewer() {
           <p className="ev-status" aria-live="polite">
             {phase === 'inspHold' && <span className="ev-flag">吸気ホールド中</span>}
             {phase === 'expHold' && <span className="ev-flag">呼気ホールド中</span>}
+            {lastBreath?.highPressureTerminated && <span className="ev-flag ev-warn">気道内圧がアラーム上限に達し、吸気を打ち切りました（参考値・未確認）</span>}
             {lastBreath?.pressureLimited && <span className="ev-flag ev-warn">気道内圧が上限で制限されています（pressureLimited）</span>}
             {lastBreath?.minPressureApplied && <span className="ev-flag">吸気圧が機種の下限になっています</span>}
             {lastBreath?.settingAdjusted && <span className="ev-flag">PH を PL + 5 cmH2O に直しています</span>}
           </p>
-          <canvas ref={canvasRef} className="ev-canvas" aria-label="圧・流量・容量の波形（10 秒分）" />
+          <WaveformCanvas sim={sim} traces={TRACES} windowSec={WINDOW} className="ev-canvas" label="圧・流量・容量の波形（10 秒分）" />
 
           <h2>直近 1 分のまとめ</h2>
           <p className="ev-summary">
@@ -376,7 +214,7 @@ export default function EngineViewer() {
                     <td>{fmt(b.totalPeep)}</td><td>{fmt(b.autoPeep)}</td>
                     <td>{fmt(lToMl(b.vti), 0)}</td><td>{fmt(lToMl(b.vte), 0)}</td>
                     <td>{fmt(b.ti, 2)}</td><td>{fmt(b.te, 2)}</td>
-                    <td>{b.ieRatio == null ? '—' : `1:${fmt(b.ieRatio, 1)}`}</td>
+                    <td>{formatIE(b.ieRatio)}</td>
                     <td>{fmt(b.cstat == null ? null : complianceToMl(b.cstat))}</td><td>{fmt(b.raw)}</td><td>{fmt(b.drivingPressure)}</td>
                   </tr>
                 ))}

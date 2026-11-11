@@ -15,6 +15,10 @@ export const REFERENCES = {
     status: 'verified',
     source: 'Puritan Bennett 980 取扱説明書・クイックガイド — VC+ の目標吸気圧は PEAK アラーム上限 − 3 cmH2O まで（2026-11-11 伊藤先生確認。ページ番号は未記録）',
   },
+  pb980PeakAlarmTruncation: {
+    status: 'unverified',
+    source: 'PB980：PEAK アラーム上限に達したときの吸気の打ち切り — 2026-11-11 伊藤先生の了承で実装。取扱説明書の原文で確認予定',
+  },
   evitaAutoFlowMinPressure: {
     status: 'verified',
     source: 'Evita V800/V600 取扱説明書・Evita V300 取扱説明書 — AutoFlow の最小吸気圧（2026-11-11 伊藤先生確認。節番号は未記録）',
