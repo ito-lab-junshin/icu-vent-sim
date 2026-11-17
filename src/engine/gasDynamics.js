@@ -12,11 +12,14 @@ import {
 } from './gasExchange.js';
 import { cardiacOutput, heartRate, bloodPressure } from './circulation.js';
 
-// model: 体内の CO2 の貯蔵の大きさ 50 mL/mmHg。
+// model: 体内の CO2 の貯蔵の大きさ 50 mL/mmHg（2026-11-17 伊藤先生決定：値は変えず model のまま）。
 //        換気が止まると PaCO2 は 1 分あたり 二酸化炭素産生量 ÷ 50 = 4 mmHg 上がる。
 //        換気を変えたあとの時定数は 0.863 × 50 ÷ VA 分（VA 4.2 L/min で約 10 分）
 export const CO2_STORE = 50;
-// model: 肺の中のガスの量 2.5 L。FiO2 や換気を変えたあと、PAO2 は時定数 2.5 ÷ VA 分（VA 4.2 L/min で約 36 秒）で変わる
+// model: 肺の中のガスの量 2.5 L（正常肺の値として置いた。2026-11-17 伊藤先生決定：値は変えず model のまま）。
+//        FiO2 や換気を変えたあと、PAO2 は時定数 2.5 ÷ VA 分（VA 4.2 L/min で約 36 秒）で変わる。
+//        いまは患者のパラメータではなく、どの患者でも同じ値を使う。PEEP や含気している肺の量でも変わらない
+//        （ARDS と COPD でどうするかは、Phase 4 の前に決める）
 export const LUNG_GAS_VOLUME = 2.5;
 // model: 計算が壊れないようにする上限と下限
 export const PACO2_MAX = 150;

@@ -8,7 +8,7 @@ export const PATIENT_INITIAL = {
   // ガス交換と循環（docs/PHASE3.md 8 の B の値。確認用で、シナリオの値ではない）
   shuntPct: 5, vdAlvPct: 0, vdAnat: 150, hb: 13, vo2: 250, vco2: 200, hco3: 24, coBase: 5,
 };
-// 心拍数・平均血圧・CVP の基準値（確認用）
+// 心拍数・平均血圧・CVP の基準値（確認用）。基準値は「陽圧をかけていない状態の値」（circulation.js）
 const CIRCULATION_BASE = { hrBase: 75, mapBase: 85, cvpBase: 8 };
 
 // 画面の値 → エンジンの内部単位
@@ -63,7 +63,7 @@ export default function PatientPanel({ value: u, onChange }) {
         <Slider label="二酸化炭素産生量" unit="mL/min" value={u.vco2} min={120} max={400} step={10} onChange={set('vco2')} />
         <Slider label="心拍出量の基準値" unit="L/min" value={u.coBase} min={2} max={10} step={0.5} onChange={set('coBase')} />
         <Slider label="HCO3" unit="mEq/L" value={u.hco3} min={10} max={40} step={1} onChange={set('hco3')} />
-        <p className="ev-note">確認用の値（シナリオは Phase 4）。心拍数 75 /min、平均血圧 85 mmHg、CVP 8 mmHg を基準にしています。</p>
+        <p className="ev-note">確認用の値（シナリオは Phase 4）。心拍出量・心拍数 75 /min・平均血圧 85 mmHg・CVP 8 mmHg は、陽圧をかけていない状態の基準値です。陽圧換気中は、心拍出量と血圧がこれより少し低く出ます。</p>
       </fieldset>
     </>
   );
