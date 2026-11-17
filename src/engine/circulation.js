@@ -4,20 +4,19 @@
 //       base = { coBase, hrBase, mapBase, cvpBase }
 //
 // model: 基準値（coBase、hrBase、mapBase、cvpBase）は「陽圧をかけていない状態の値」と定義する（2026-11-17 伊藤先生決定）。
-//        陽圧換気では静脈還流が減るので、ふつうの設定（PEEP 5 cmH2O）でも、心拍出量と血圧は基準値より少し低く出る
-//        （例：VT 500 mL、f 12、PEEP 5 で肺胞圧の平均は約 7.5 cmH2O、心拍出量は基準値 5.0 に対して 4.81 L/min、平均血圧 82 mmHg）。
-//        これは意図した動きで、基準の圧は上げない。
+//        基準の圧は 0 cmH2O（2026-11-17 伊藤先生決定。それまでは 5 cmH2O だった）。
+//        陽圧換気では静脈還流が減るので、ふつうの設定（PEEP 5 cmH2O）でも、心拍出量と血圧は基準値より低く出る
+//        （例：VT 500 mL、f 12、PEEP 5 で肺胞圧の平均は約 7.5 cmH2O、心拍出量は基準値 5.0 に対して 4.44 L/min、平均血圧 76 mmHg）。
+//        これは意図した動き。
 //
 // palvMean の求め方（breathMetrics.js）：1 呼吸（吸気の始まりから次の吸気の始まりまで。ホールド中も含む）について、
 //   弾性による肺胞圧 V ÷ C を 5 ms ごとに足して平均した値。PEEP と auto-PEEP と一回換気量による上昇を含み、
 //   気道抵抗による圧と Pmus は含まない。人工呼吸器の Pmean（気道内圧の平均）や設定 PEEP とは別の値。
-// 注意：いまの式は、肺胞圧の平均が CO_REFERENCE_PRESSURE（5 cmH2O）以下では低下を 0 としている。
-//   つまり 0〜5 cmH2O の間は基準値のままで、5 cmH2O を超えた分だけ下がる。
-//   また、肺のコンプライアンスや病態によらず、同じ肺胞圧なら同じだけ下がる（胸腔内圧への伝わり方の違いは入れていない）。
-//   どちらも伊藤先生の確認待ち（2026-11-17 時点。値は変えていない）。
+// 注意：肺のコンプライアンスや病態によらず、同じ肺胞圧なら同じだけ下がる（胸腔内圧への伝わり方の違いは入れていない）。
+//   1 cmH2O あたりの低下の大きさとあわせて、伊藤先生の確認待ち（2026-11-17 時点）。
 
-// model: 肺胞圧の平均が 5 cmH2O を超えた分、1 cmH2O あたり心拍出量を 1.5 % 下げる（静脈還流の低下）。下限は基準値の 40 %
-export const CO_REFERENCE_PRESSURE = 5;
+// model: 肺胞圧の平均が 0 cmH2O を超えた分、1 cmH2O あたり心拍出量を 1.5 % 下げる（静脈還流の低下）。下限は基準値の 40 %
+export const CO_REFERENCE_PRESSURE = 0;
 export const CO_DROP_PER_CMH2O = 0.015;
 export const CO_MIN_FRACTION = 0.4;
 // model: SaO2 が 94 % を下回った分、1 % あたり心拍数を 1.5 /min 上げる。PaCO2 が 45 mmHg を超えた分、1 mmHg あたり 0.5 /min 上げる。上限 160 /min
@@ -26,7 +25,7 @@ export const HR_PER_SAO2_PERCENT = 1.5;
 export const HR_PACO2_THRESHOLD = 45;
 export const HR_PER_PACO2 = 0.5;
 export const HR_MAX = 160;
-// model: CVP は、肺胞圧の平均が 5 cmH2O を超えた分、1 cmH2O あたり 0.3 mmHg 上がる（胸腔内圧の伝わり）
+// model: CVP は、肺胞圧の平均が 0 cmH2O を超えた分（心拍出量と同じ基準の圧）、1 cmH2O あたり 0.3 mmHg 上がる（胸腔内圧の伝わり）
 export const CVP_PER_CMH2O = 0.3;
 // model: 脈圧の基準値 40 mmHg。1 回拍出量に比例して変わる
 export const PULSE_PRESSURE_BASE = 40;
