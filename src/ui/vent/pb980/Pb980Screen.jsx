@@ -10,7 +10,6 @@ import {
 } from '../ventSettings.js';
 import WaveformCanvas, { TRACE_PAW, TRACE_FLOW, TRACE_VOLUME_BREATH } from '../WaveformCanvas.jsx';
 import LoopCanvas from '../LoopCanvas.jsx';
-import PatientPanel from '../../dev/PatientPanel.jsx';
 import { toEngineSettings, alarmLimits, modeDisplayName, settingKeysFor } from './settingsMap.js';
 import { patientDataPages } from './patientData.js';
 import PatientDataBanner from './PatientDataBanner.jsx';
@@ -46,7 +45,7 @@ export default function Pb980Screen({ settings, setSettings }) {
   const confirmed = settings.confirmed;
 
   // エンジンには確定済みの設定だけを渡す（O2 も渡す）
-  const { sim, breaths, status, inspHold, expHold, manualBreath, patient, setPatient, applySettings } = useSimulation();
+  const { sim, breaths, status, inspHold, expHold, manualBreath, applySettings } = useSimulation();
   const engineSettings = useMemo(() => toEngineSettings(confirmed), [confirmed]);
   useEffect(() => {
     applySettings(engineSettings);
@@ -148,12 +147,6 @@ export default function Pb980Screen({ settings, setSettings }) {
         「参考値（未確認）」の値は{PB980_SETTINGS.note}。PB980 の取扱説明書で確認できた項目から置き換えます。
       </p>
 
-      <details className="pb-patient">
-        <summary>患者の肺・自発呼吸・ガス交換を変える（確認用。シナリオは Phase 4）</summary>
-        <div className="pb-patient-grid ev">
-          <PatientPanel value={patient} onChange={setPatient} />
-        </div>
-      </details>
     </div>
   );
 }

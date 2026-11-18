@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { VENT_LAYOUTS, MODE_NAMES } from '../../config/ventLayouts.js';
 import { UNVERIFIED_LABEL } from '../../config/references.js';
 import Unverified from '../vent/Unverified.jsx';
@@ -11,6 +11,9 @@ import WaveformCanvas, { TRACE_PAW, TRACE_FLOW, TRACE_VOLUME_FRC } from '../vent
 import PatientPanel, { Slider, PATIENT_INITIAL, toEnginePatient } from './PatientPanel.jsx';
 import TimeControl from '../time/TimeControl.jsx';
 import TrendChart, { TREND_ITEMS, TREND_ITEMS_BLOOD_GAS } from '../time/TrendChart.jsx';
+
+import { SCENARIOS, getScenario } from '../../scenarios/index.js';
+import { baseExcess, lactate, pfRatio } from '../../engine/bloodGas.js';
 
 const TREND_ALL = [...TREND_ITEMS_BLOOD_GAS, ...TREND_ITEMS];
 
@@ -31,6 +34,7 @@ const INITIAL = {
   ...PATIENT_INITIAL,
   // 設定
   mode: 'VC-AC', device: 'pb980',
+  lungModel: 'none', // 'none'（1 区画・固定）またはシナリオの ID（3 区画の肺）
   rr: 12, ti: 1.0, peep: 5, triggerFlow: 2, fio2Pct: 40,
   vt: 500, flow: 60, flowPattern: 'square',
   deltaP: 15, riseTime: 0,
@@ -43,8 +47,12 @@ const INITIAL = {
 
 // 画面の値 → エンジンの内部単位
 function toEngine(u) {
+  const base = toEnginePatient(u);
+  // 3 区画の肺：シナリオの肺を使う。抵抗と、ガス交換・循環の値（シャント率と肺胞死腔率を除く）はスライダーの値を使う
+  const patient = u.lungModel === 'none' ? base.patient : { ...base.patient, lung: getScenario(u.lungModel).patient.lung };
   return {
-    ...toEnginePatient(u),
+    patient,
+    effort: base.effort,
     settings: {
       mode: u.mode, rr: u.rr, ti: u.ti, peep: u.peep, triggerFlow: lpmToLps(u.triggerFlow), fio2: u.fio2Pct / 100,
       vt: mlToL(u.vt), flow: lpmToLps(u.flow), flowPattern: u.flowPattern,
@@ -75,6 +83,22 @@ export default function EngineViewer() {
   const api = useVentSimulation(inputsRef, WINDOW);
   const { sim, breaths, status, inspHold, expHold, reset } = api;
   const v = status.vitals;
+  const lungNow = status.lung;
+  // 肺のモデルを選び直したら、シナリオの値をスライダーに入れて、最初からやり直す
+  const chooseLung = (id) => {
+    if (id === 'none') { setU((prev) => ({ ...prev, lungModel: 'none' })); return; }
+    const sc = getScenario(id);
+    const g = sc.patient.gas;
+    setU((prev) => ({
+      ...prev, lungModel: id, rInsp: sc.patient.rInsp, rExp: sc.patient.rExp,
+      hb: g.hb, vo2: g.vo2, vco2: g.vco2, hco3: g.hco3, coBase: g.coBase, vdAnat: g.vdAnat * 1000,
+      pmusMax: sc.effort?.pmusMax ?? 0, effortRate: sc.effort?.rate ?? prev.effortRate, tiEffort: sc.effort?.tiEffort ?? prev.tiEffort,
+    }));
+  };
+  useEffect(() => {
+    reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [u.lungModel]);
   const phase = status.phase;
   const set = (key) => (value) => setU((prev) => ({ ...prev, [key]: value }));
 
@@ -91,6 +115,24 @@ export default function EngineViewer() {
 
       <div className="ev-layout">
         <div className="ev-controls">
+          <fieldset>
+            <legend>肺のモデル</legend>
+            <label className="ev-select">
+              <select value={u.lungModel} onChange={(e) => chooseLung(e.target.value)}>
+                <option value="none">1 区画（コンプライアンスは固定）</option>
+                {SCENARIOS.map((sc) => <option key={sc.id} value={sc.id}>3 区画：{sc.name}</option>)}
+              </select>
+            </label>
+            {lungNow ? (
+              <p className="ev-note">
+                いまの肺：開いている割合 {fmt(lungNow.o, 2)}、コンプライアンス {fmt(lungNow.cEff * 1000, 1)} mL/cmH2O、
+                シャント率 {fmt(lungNow.shunt * 100, 1)} %、肺胞死腔率 {fmt(lungNow.vdAlv * 100, 1)} %、吸気終末の肺胞圧 {fmt(lungNow.pEndInsp, 1)} cmH2O。
+                3 区画の肺では、下のコンプライアンス・シャント率・肺胞死腔率のスライダーは使われません。選び直すと最初からやり直します。値は仮の値です。
+              </p>
+            ) : (
+              <p className="ev-note">3 区画の肺を選ぶと、シナリオの肺（リクルート・虚脱・過膨張）で動きます。</p>
+            )}
+          </fieldset>
           <PatientPanel value={u} onChange={(next) => setU((prev) => ({ ...prev, ...next }))} />
 
           <fieldset>
@@ -195,19 +237,19 @@ export default function EngineViewer() {
             <table className="ev-table">
               <thead>
                 <tr>
-                  <th>PAO2</th><th>PaO2</th><th>SaO2</th><th>PaCO2</th><th>EtCO2</th><th>pH</th><th>HCO3</th>
+                  <th>PAO2</th><th>PaO2</th><th>P/F 比</th><th>SaO2</th><th>PaCO2</th><th>EtCO2</th><th>pH</th><th>HCO3</th><th>BE</th><th>Lac</th>
                   <th>CaO2</th><th>CvO2</th><th>SvO2</th><th>心拍出量</th><th>心拍数</th><th>血圧（平均）</th><th>CVP</th>
                 </tr>
                 <tr className="ev-units">
-                  <th>mmHg</th><th>mmHg</th><th>%</th><th>mmHg</th><th>mmHg</th><th></th><th>mEq/L</th>
+                  <th>mmHg</th><th>mmHg</th><th></th><th>%</th><th>mmHg</th><th>mmHg</th><th></th><th>mEq/L</th><th>mEq/L</th><th>mmol/L</th>
                   <th>mL/dL</th><th>mL/dL</th><th>%</th><th>L/min</th><th>/min</th><th>mmHg</th><th>mmHg</th>
                 </tr>
               </thead>
               <tbody>
                 {v && (
                   <tr>
-                    <td>{fmt(v.pAO2, 0)}</td><td>{fmt(v.paO2, 0)}</td><td>{fmt(v.saO2 * 100, 1)}</td><td>{fmt(v.paCO2, 1)}</td><td>{fmt(v.etCO2, 1)}</td>
-                    <td>{fmt(v.ph, 2)}</td><td>{fmt(v.hco3, 0)}</td><td>{fmt(v.caO2, 1)}</td><td>{fmt(v.cvO2, 1)}</td><td>{fmt(v.svO2 * 100, 0)}</td>
+                    <td>{fmt(v.pAO2, 0)}</td><td>{fmt(v.paO2, 0)}</td><td>{fmt(pfRatio(v.paO2, u.fio2Pct / 100), 0)}</td><td>{fmt(v.saO2 * 100, 1)}</td><td>{fmt(v.paCO2, 1)}</td><td>{fmt(v.etCO2, 1)}</td>
+                    <td>{fmt(v.ph, 2)}</td><td>{fmt(v.hco3, 0)}</td><td>{fmt(baseExcess(v.hco3, v.ph), 1)}</td><td>{fmt(lactate(v.svO2), 1)}</td><td>{fmt(v.caO2, 1)}</td><td>{fmt(v.cvO2, 1)}</td><td>{fmt(v.svO2 * 100, 0)}</td>
                     <td>{fmt(v.co, 2)}</td><td>{fmt(v.hr, 0)}</td><td>{fmt(v.sys, 0)}/{fmt(v.dia, 0)}（{fmt(v.map, 0)}）</td><td>{fmt(v.cvp, 1)}</td>
                   </tr>
                 )}

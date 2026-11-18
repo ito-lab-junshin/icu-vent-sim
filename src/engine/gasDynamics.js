@@ -7,10 +7,13 @@
 //   coBase 心拍出量の基準値（L/min）, hrBase, mapBase, cvpBase
 // }
 // slow（遅い状態）= { pAO2 肺胞気の PO2, paCO2, palvMean 肺胞圧の平均, lastN 最後に進めたステップ番号 }
+//   3 区画の肺（patient.lung）があるときは、さらに { o 開いている割合, pEndInsp 吸気終末の肺胞圧, cEff, shunt, vdAlv } を持つ
 import {
   GAS_CONSTANTS, alveolarPO2, arterialOxygen, etco2FromPaco2, phFromHco3,
 } from './gasExchange.js';
 import { cardiacOutput, heartRate, bloodPressure } from './circulation.js';
+import { lungState } from './lungUnits.js';
+import { advanceOpenFraction, RECRUITMENT_DEFAULT } from './recruitment.js';
 
 // model: 体内の CO2 の貯蔵の大きさ 50 mL/mmHg（2026-11-17 伊藤先生決定：値は変えず model のまま）。
 //        換気が止まると PaCO2 は 1 分あたり 二酸化炭素産生量 ÷ 50 = 4 mmHg 上がる。
@@ -31,13 +34,31 @@ export const APNEA_ADVANCE = 10;
 
 const fio2Of = (fio2) => fio2 ?? 0.21;
 
-export function initialSlowState(gas, settings, baselinePressure, n = 0) {
-  return {
+export function initialSlowState(gas, settings, baselinePressure, n = 0, lung = null) {
+  const slow = {
     paCO2: PACO2_INITIAL,
     pAO2: Math.max(PAO2_MIN, alveolarPO2(fio2Of(settings.fio2), PACO2_INITIAL)),
     palvMean: baselinePressure,
     lastN: n,
   };
+  if (!lung) return slow;
+  return { ...slow, o: lung.o0, pEndInsp: baselinePressure, ...lungState(lung, lung.o0, baselinePressure) };
+}
+
+// 3 区画の肺の状態を dtSec 秒進める：開いている割合 o を進め、コンプライアンス・シャント率・肺胞死腔率を求め直す
+export function advanceLungState(slow, { pEndInsp, pEndExp, dtSec }, lung) {
+  const o = advanceOpenFraction(slow.o, { pEndInsp, pEndExp }, dtSec, lung.recruitment ?? RECRUITMENT_DEFAULT);
+  return { ...slow, o, pEndInsp, ...lungState(lung, o, pEndInsp) };
+}
+
+// 3 区画の肺があるとき、いまの肺の状態（コンプライアンス、シャント率、肺胞死腔率）を入れた患者のパラメータを返す
+export function effectivePatient(patient, slow) {
+  if (!patient.lung || !slow || slow.cEff == null) return patient;
+  return { ...patient, c: slow.cEff, gas: effectiveGas(patient.gas, slow) };
+}
+export function effectiveGas(gas, slow) {
+  if (!gas || !slow || slow.shunt == null) return gas;
+  return { ...gas, shunt: slow.shunt, vdAlvFraction: slow.vdAlv };
 }
 
 // 1 呼吸で肺胞に届いた量（L）：（VTe − 解剖学的死腔）×（1 − 肺胞死腔率）
@@ -81,7 +102,8 @@ export function steadySlowState(vaLpm, gas, fio2) {
 }
 
 // 遅い状態から、モニタや血液ガスに出す値を求める
-export function deriveVitals(slow, gas) {
+export function deriveVitals(slow, baseGas) {
+  const gas = effectiveGas(baseGas, slow); // 3 区画の肺があるときは、いまのシャント率と肺胞死腔率を使う
   const co = cardiacOutput(slow.palvMean, gas);
   const ox = arterialOxygen({ pAO2: slow.pAO2, shunt: gas.shunt, hb: gas.hb, vo2: gas.vo2, co });
   const hr = heartRate(ox.sao2, slow.paCO2, gas);

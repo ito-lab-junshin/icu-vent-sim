@@ -39,6 +39,7 @@
 | 酸素解離曲線 | SO2 = 1 ÷（1 + 23400 ÷（PO2³ + 150 × PO2）） | Severinghaus JW. J Appl Physiol 1979;46(3):599-602 | 未 |
 | Fick の関係、シャントの式 | CvO2 = CaO2 − 酸素消費量 ÷（心拍出量 × 10）、Qs/Qt =（Cc'O2 − CaO2）÷（Cc'O2 − CvO2） | 呼吸生理学の教科書 | 未 |
 | Henderson–Hasselbalch の式 | pH = 6.1 + log10（HCO3 ÷（0.03 × PaCO2）） | 同上 | 未 |
+| BE（Phase 4A） | BE = 0.93 ×（HCO3 − 24.4 + 14.8 ×（pH − 7.40）） | 血液ガスの教科書 | 未 |
 
 ## メモ（2026-11-11、二次資料で見た内容。原文で未確認）
 

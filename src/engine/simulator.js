@@ -3,6 +3,7 @@
 //
 //   patient  = { c, rInsp, rExp, gas }                 肺（内部単位）。gas はガス交換と循環のパラメータ（gasDynamics.js）。
 //                                                      gas がなければ、ガス交換は計算しない（Phase 1 と同じ動き）
+//              patient.lung（lungUnits.js）があるときは 3 区画の肺として扱い、c は使わず、肺の状態から求めた値を 1 呼吸ごとに使う
 //   effort   = { pmusMax, rate, tiEffort } または null  自発呼吸
 //   settings = { mode, ...モードごとの設定 }             各 modes/*.js の先頭に設定の一覧
 //   deviceId = 'pb980' | 'hamilton' | 'evita'          圧の上限ルールを選ぶ
@@ -11,7 +12,7 @@ import { pmusAt } from './patientEffort.js';
 import { alveolarPressure, flowAtPressure, pawAtFlow, stepPressureControlled, stepFlowControlled } from './lungMechanics.js';
 import { resolveDeviceLimits } from './deviceRules.js';
 import { newBreath, accumulate, finalizeBreath } from './breathMetrics.js';
-import { initialSlowState, advanceSlowState, alveolarVolume, APNEA_ADVANCE } from './gasDynamics.js';
+import { initialSlowState, advanceSlowState, advanceLungState, effectivePatient, alveolarVolume, APNEA_ADVANCE } from './gasDynamics.js';
 import { toSteps } from './units.js';
 import { vcAc } from './modes/vcAc.js';
 import { pcAc } from './modes/pcAc.js';
@@ -37,9 +38,11 @@ export function createState(patient, settings, deviceId) {
   const mode = MODES[modeId];
   const limits = resolveDeviceLimits(deviceId, settings);
   const base = mode.baselinePressure(settings);
+  if (patient.lung && !patient.gas) throw new Error('patient.lung を使うときは patient.gas も必要');
+  const slow = patient.gas ? initialSlowState(patient.gas, settings, base, 0, patient.lung ?? null) : null;
   return {
     n: 0,                 // ステップ番号。時刻 t = n × DT
-    v: base * patient.c,  // 機能的残気量からの容量の増分
+    v: base * effectivePatient(patient, slow).c,  // 機能的残気量からの容量の増分
     flow: 0,
     paw: base,
     phase: 'exp',         // 'insp' | 'inspHold' | 'exp' | 'expHold'
@@ -56,7 +59,7 @@ export function createState(patient, settings, deviceId) {
     queuedTrigger: null,
     pendingManualBreath: false, // 予約された用手換気
     forceExp: false,            // アラーム上限に達したので、次のステップで呼気に移る
-    slow: patient.gas ? initialSlowState(patient.gas, settings, base) : null, // 遅い状態（肺胞気の PO2、PaCO2 など）
+    slow, // 遅い状態（肺胞気の PO2、PaCO2、3 区画の肺の開いている割合など）
     breathSettings: settings, // いまの呼吸が始まったときの設定（吸気の途中で設定が変わっても、その吸気は元の設定で終える）
   };
 }
@@ -95,9 +98,10 @@ function beginInspiration(s, trigger, settings, limits) {
 
 // 時間を 1 ステップ（DT 秒）進める。
 // 返り値：{ state, sample, breath }。breath は、このステップで終わった呼吸の実測値（なければ null）
-export function step(prev, patient, settings, deviceId, effort = null) {
+export function step(prev, basePatient, settings, deviceId, effort = null) {
   const limits = resolveDeviceLimits(deviceId, settings);
   let s = { ...prev };
+  let patient = effectivePatient(basePatient, s.slow); // 3 区画の肺があるときは、いまの肺の状態を入れる
   let completed = null;
 
   // モードの切り替えは呼気中に行う（吸気の途中では切り替えない）
@@ -151,16 +155,28 @@ export function step(prev, patient, settings, deviceId, effort = null) {
   // 遅い状態（ガスの貯蔵）を進める。1 呼吸が終わるたびに、その呼吸の換気で進める。
   // 呼吸が長く止まっているとき（無呼吸）は、換気 0 として一定の間隔で進める
   if (patient.gas) {
-    let slow = s.slow ?? initialSlowState(patient.gas, settings, mode.baselinePressure(settings), s.n);
+    const lung = basePatient.lung ?? null;
+    let slow = s.slow ?? initialSlowState(basePatient.gas, settings, mode.baselinePressure(settings), s.n, lung);
+    const cBefore = effectivePatient(basePatient, slow).c;
     const dtSec = (s.n - slow.lastN) * DT;
     if (completed) {
       slow = advanceSlowState(slow, { dtSec, alvVolL: alveolarVolume(completed.vte, patient.gas), palvMean: completed.palvMean }, patient.gas, settings.fio2);
+      if (lung) slow = advanceLungState(slow, { pEndInsp: completed.palvEndInsp, pEndExp: completed.palvEndExp, dtSec }, lung);
       slow = { ...slow, lastN: s.n };
     } else if (s.n - slow.lastN >= toSteps(APNEA_ADVANCE)) {
       slow = advanceSlowState(slow, { dtSec, alvVolL: 0, palvMean: slow.palvMean }, patient.gas, settings.fio2);
+      if (lung) slow = advanceLungState(slow, { pEndInsp: s.v / cBefore, pEndExp: s.v / cBefore, dtSec }, lung);
       slow = { ...slow, lastN: s.n };
     }
     s = { ...s, slow };
+    if (lung) {
+      // コンプライアンスが変わったら、肺胞圧がつながるように容量を合わせ直す（含気している肺の量が変わったぶん）
+      patient = effectivePatient(basePatient, slow);
+      if (patient.c !== cBefore) {
+        const k = patient.c / cBefore;
+        s = { ...s, v: s.v * k, breath: s.breath ? { ...s.breath, vStart: s.breath.vStart * k, vEndInsp: s.breath.vEndInsp * k } : null };
+      }
+    }
   }
 
   // 2. いまの相で 1 ステップ積分する

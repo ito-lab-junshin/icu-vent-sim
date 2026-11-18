@@ -13,7 +13,7 @@ import { DT } from '../../engine/units.js';
 //   sim      ref。sim.current = { state, samples（直近 windowSec 秒）, breaths（終わった呼吸）, trend（1 分ごとの記録）, marks（設定を変えた時刻） }
 //            波形の部品が直接読む
 //   breaths  終わった呼吸の実測値（古い順、直近 60 個）
-//   status   { t, phase, lastInspStart, terminated, vitals }。約 0.2 秒ごとと、相が変わったときに更新する。
+//   status   { t, phase, lastInspStart, terminated, vitals, lung }。lung は 3 区画の肺の状態（なければ null）。約 0.2 秒ごとと、相が変わったときに更新する。
 //            terminated は、いまの呼吸の吸気がアラーム上限で打ち切られたか。vitals はガス交換と循環の値（gas がなければ null）
 //   speed    倍速（1、10、60）。エンジンを 1 フレームに何ステップも進めるだけで、計算は同じ
 //   jumpBy   時間経過ボタン。遅い状態だけを進める
@@ -52,6 +52,7 @@ export function useVentSimulation(inputsRef, windowSec = 10) {
       t: s.n * DT, phase: s.phase, lastInspStart: s.breath?.tStart ?? 0,
       terminated: Boolean(s.breath?.highPressureTerminated),
       vitals: vitalsOf(s, inputsRef.current),
+      lung: s.slow && s.slow.o != null ? { o: s.slow.o, cEff: s.slow.cEff, shunt: s.slow.shunt, vdAlv: s.slow.vdAlv, pEndInsp: s.slow.pEndInsp } : null,
       baseline: baselineOf(s, inputsRef.current.settings),
     };
   };

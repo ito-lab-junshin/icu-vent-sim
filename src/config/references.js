@@ -19,6 +19,7 @@ export const REFERENCES = {
   physiologyO2Dissociation: { status: 'model', confirmedBy: null, source: '酸素解離曲線 SO2 = 1 ÷（1 + 23400 ÷（PO2³ + 150 × PO2））— Severinghaus JW. J Appl Physiol 1979;46(3):599-602' },
   physiologyFickShunt: { status: 'model', confirmedBy: null, source: 'Fick の関係、シャントの式 — 呼吸生理学の教科書' },
   physiologyHendersonHasselbalch: { status: 'model', confirmedBy: null, source: 'pH = 6.1 + log10（HCO3 ÷（0.03 × PaCO2））— 呼吸生理学の教科書' },
+  physiologyBaseExcess: { status: 'model', confirmedBy: null, source: 'BE = 0.93 ×（HCO3 − 24.4 + 14.8 ×（pH − 7.40））— 血液ガスの教科書（docs/PHASE4.md 8 の F の案。原典では未確認）' },
   ecmoLungRest: {
     status: 'unverified',
     source: 'ELSO Interim Guidelines for Adult Respiratory Failure (2021) — 原文の表で確認予定',

@@ -9,10 +9,12 @@ export function formatElapsed(seconds) {
   return `${Math.floor(s / 3600)}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
 }
 
-export default function TimeControl({ api }) {
+// children：左端に置く部品（シナリオの選択など）
+export default function TimeControl({ api, children }) {
   const { status, running, setRunning, speed, setSpeed, jumpBy } = api;
   return (
     <div className="timebar" role="group" aria-label="時間の進め方">
+      {children}
       <span className="timebar-elapsed">経過時間 <strong>{formatElapsed(status.t)}</strong></span>
       <div className="timebar-group" role="group" aria-label="速さ">
         <button type="button" onClick={() => setRunning((r) => !r)} aria-pressed={!running}>{running ? '一時停止' : '再開'}</button>

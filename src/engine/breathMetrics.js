@@ -14,7 +14,7 @@ export function newBreath({ index, modeId, trigger, type, tStart, vStart, peepSe
     inspSteps: 0, pauseSteps: 0, expSteps: 0, holdSteps: 0,
     pip: -Infinity, flowAtPip: 0, peakFlow: 0, endInspFlow: 0,
     pausePaw: null, pplatHold: null, totalPeep: null,
-    vEndInsp: vStart, spontCount: 0,
+    vEndInsp: vStart, spontCount: 0, palvEndInsp: null, palvLast: null,
   };
 }
 
@@ -24,6 +24,8 @@ export function accumulate(b, sample) {
   n.steps += 1;
   n.sumPaw += sample.paw;
   n.sumPalv += sample.palv ?? sample.paw;
+  n.palvLast = sample.palv ?? sample.paw;
+  if (sample.phase === 'insp' || sample.phase === 'inspHold') n.palvEndInsp = n.palvLast;
   if (sample.limited) n.pressureLimited = true;
   if (sample.terminated) n.highPressureTerminated = true;
   if (sample.phase === 'insp') {
@@ -73,6 +75,9 @@ export function finalizeBreath(b, vEnd) {
     pmean: b.sumPaw / b.steps,
     // 肺胞圧（弾性による圧 V ÷ C）の平均。人工呼吸器では測れない、エンジンの中の値。循環の計算に使う（auto-PEEP の分も含む）
     palvMean: b.sumPalv / b.steps,
+    // 吸気終末と呼気終末の肺胞圧（弾性による圧）。これもエンジンの中の値で、リクルートと過膨張の計算に使う
+    palvEndInsp: b.palvEndInsp ?? b.palvLast,
+    palvEndExp: b.palvLast,
     peepSet: b.peepSet,
     totalPeep,
     autoPeep: totalPeep != null ? totalPeep - b.peepSet : null,
