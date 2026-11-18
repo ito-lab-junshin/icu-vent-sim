@@ -20,6 +20,10 @@ export const REFERENCES = {
   physiologyFickShunt: { status: 'model', confirmedBy: null, source: 'Fick の関係、シャントの式 — 呼吸生理学の教科書' },
   physiologyHendersonHasselbalch: { status: 'model', confirmedBy: null, source: 'pH = 6.1 + log10（HCO3 ÷（0.03 × PaCO2））— 呼吸生理学の教科書' },
   physiologyBaseExcess: { status: 'model', confirmedBy: null, source: 'BE = 0.93 ×（HCO3 − 24.4 + 14.8 ×（pH − 7.40））— 血液ガスの教科書（docs/PHASE4.md 8 の F の案。原典では未確認）' },
+  scenarioInitialSettings: {
+    status: 'unverified',
+    source: 'シナリオの最初の人工呼吸器設定（正常肺 7 mL/kg・14 回/min・PEEP 5・O2 40 %、重症 ARDS 6 mL/kg・22 回/min・PEEP 14・O2 80 %、COPD 増悪 7 mL/kg・12 回/min・PEEP 5・O2 40 %）— 2026-11-18 に伊藤先生が決めたシナリオの初期値。ガイドラインの推奨値として表示しない',
+  },
   ecmoLungRest: {
     status: 'unverified',
     source: 'ELSO Interim Guidelines for Adult Respiratory Failure (2021) — 原文の表で確認予定',

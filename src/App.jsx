@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { VENT_LAYOUTS, PB980_SETTINGS } from './config/ventLayouts.js';
+import { VENT_LAYOUTS } from './config/ventLayouts.js';
 import EngineViewer from './ui/dev/EngineViewer.jsx';
 import Pb980Screen from './ui/vent/pb980/Pb980Screen.jsx';
 import { toEngineSettings, DEVICE_ID } from './ui/vent/pb980/settingsMap.js';
-import { createSettings, changeSetting, confirmSettings } from './ui/vent/ventSettings.js';
+import { initialPbSettings } from './ui/vent/pb980/scenarioSettings.js';
+import Unverified from './ui/vent/Unverified.jsx';
 import { SimulationProvider, useSimulation } from './ui/SimulationContext.jsx';
 import BedsideMonitor from './ui/monitor/BedsideMonitor.jsx';
 import TimeControl from './ui/time/TimeControl.jsx';
@@ -17,15 +18,6 @@ import { getScenario, DEFAULT_SCENARIO_ID } from './scenarios/index.js';
 
 const FOOT = '教育用シミュレータです。実在する機器のメーカーとは関係がなく、臨床判断に用いないでください。';
 
-// シナリオの最初の状態の、PB980 風の設定。性別と身長はシナリオの患者に合わせる。
-// 最初の人工呼吸器設定がシナリオで決まっていなければ、画面の初期値のまま
-function initialPbSettings(scenario) {
-  const defs = PB980_SETTINGS.items;
-  let s = createSettings(defs);
-  for (const [key, value] of Object.entries({ ...scenario.demographics, ...(scenario.initialSettings ?? {}) })) s = changeSetting(s, key, value, defs);
-  return confirmSettings(s);
-}
-
 function Simulator({ layout, pbSettings, setPbSettings, onStartScenario }) {
   const api = useSimulation();
   return (
@@ -33,7 +25,8 @@ function Simulator({ layout, pbSettings, setPbSettings, onStartScenario }) {
       <TimeControl api={api}>
         <ScenarioPicker scenario={api.scenario} started={api.status.t > 0} onStart={onStartScenario} />
       </TimeControl>
-      <p className="scenario-summary">{api.scenario.name}：{api.scenario.summary}<span className="scenario-note">（患者の値と最初の設定は仮の値）</span></p>
+      <p className="scenario-summary">{api.scenario.name}：{api.scenario.summary}<span className="scenario-note">（患者の値は仮の値）</span>{' '}
+        <Unverified refKey="scenarioInitialSettings" what="最初の人工呼吸器設定（シナリオの初期値。ガイドラインの推奨値ではない）" /></p>
       <main className="grid">
         <section className="panel monitor" aria-label="ベッドサイドモニタ">
           <BedsideMonitor api={api} />

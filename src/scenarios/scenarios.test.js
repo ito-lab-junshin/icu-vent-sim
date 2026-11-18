@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { SCENARIOS, getScenario, DEFAULT_SCENARIO_ID } from './index.js';
+import { SCENARIOS, getScenario, DEFAULT_SCENARIO_ID, initialVentSettings } from './index.js';
+import { initialPbSettings } from '../ui/vent/pb980/scenarioSettings.js';
+import { toEngineSettings } from '../ui/vent/pb980/settingsMap.js';
 import { createState, run } from '../engine/simulator.js';
 import { requestExpHold } from '../engine/maneuvers.js';
 import { jump } from '../engine/clock.js';
@@ -22,6 +24,18 @@ describe('シナリオ（Phase 4A）', () => {
       expect(fNormal + fRecruitable + fNon, s.id).toBeCloseTo(1, 10);
     }
     expect(() => getScenario('xxx')).toThrow();
+  });
+
+  it('最初の人工呼吸器設定：VT は予測体重 × 予測体重あたりの mL。画面では設定の刻みに丸める', () => {
+    expect(initialVentSettings(getScenario('normal'))).toMatchObject({ f: 14, peep: 5, o2: 40 });
+    expect(initialVentSettings(getScenario('normal')).vt).toBeCloseTo(66.0 * 7, 6);   // 462 mL
+    expect(initialVentSettings(getScenario('ards')).vt).toBeCloseTo(66.0 * 6, 6);     // 396 mL
+    expect(initialVentSettings(getScenario('copd')).vt).toBeCloseTo(61.5 * 7, 6);     // 430.5 mL
+    const shown = (id) => initialPbSettings(getScenario(id)).confirmed;
+    expect(shown('normal')).toMatchObject({ vt: 460, f: 14, peep: 5, o2: 40, height: 170, sex: 'male' });
+    expect(shown('ards')).toMatchObject({ vt: 395, f: 22, peep: 14, o2: 80 });
+    expect(shown('copd')).toMatchObject({ vt: 430, f: 12, peep: 5, o2: 40, height: 165 });
+    expect(toEngineSettings(shown('ards'))).toMatchObject({ mode: 'VC-AC', rr: 22, vt: 0.395, peep: 14, fio2: 0.8 });
   });
 
   // 受け入れ条件 12
