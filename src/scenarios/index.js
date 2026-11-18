@@ -9,6 +9,7 @@
 //   patient { rInsp, rExp, lung, gas }       エンジンの内部単位（lungUnits.js、gasDynamics.js）
 //   effort                                   自発呼吸（null は深い鎮静）
 //   initialSettings { vtPerKg, f, peep, o2 } 最初の人工呼吸器設定。VT は予測体重あたりの mL。そのほかは画面の初期値のまま
+//   conditions                               画面に出す患者の状態（例：昇圧薬を使用中）。薬の名前や用量は出さない
 // }
 import { RECRUITMENT_DEFAULT } from '../engine/recruitment.js';
 import { predictedBodyWeight } from '../engine/patient.js';
@@ -45,8 +46,12 @@ export const SCENARIOS = [
     patient: {
       rInsp: 12, rExp: 12,
       lung: lung(60, 0.35, 0.30, 0.35, 0.3, 0.25),
-      gas: { ...COMMON_GAS, hb: 11, vo2: 300, vco2: 240, hco3: 22, coBase: 6.0 },
+      // model: 平均血圧の基準値（陽圧をかけていない状態の値）を、このシナリオだけ 95 mmHg にする（ほかは 85 mmHg）。
+      //        「昇圧薬を使用中」という設定で、最初の設定（PEEP 14）での平均血圧が約 70 mmHg になるようにした（2026-11-18 伊藤先生決定）。
+      //        心拍出量は変えない。モニタのアラームの下限 65 mmHg も変えない
+      gas: { ...COMMON_GAS, hb: 11, vo2: 300, vco2: 240, hco3: 22, coBase: 6.0, mapBase: 95 },
     },
+    conditions: ['昇圧薬を使用中'],
     effort: null,
     initialSettings: { vtPerKg: 6, f: 22, peep: 14, o2: 80 },
   },
@@ -62,7 +67,7 @@ export const SCENARIOS = [
     },
     // model: 自発呼吸の大きさ・回数・吸気努力の時間は仮の値（呼吸ドライブは 4B で作る）
     effort: { pmusMax: 5, rate: 18, tiEffort: 0.8 },
-    initialSettings: { vtPerKg: 7, f: 12, peep: 5, o2: 40 },
+    initialSettings: { vtPerKg: 7, f: 12, peep: 5, o2: 30 }, // O2 は 2026-11-18 に 40 % から 30 % に変更（伊藤先生決定）
   },
 ];
 

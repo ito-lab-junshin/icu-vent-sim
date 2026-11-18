@@ -25,7 +25,8 @@ function Simulator({ layout, pbSettings, setPbSettings, onStartScenario }) {
       <TimeControl api={api}>
         <ScenarioPicker scenario={api.scenario} started={api.status.t > 0} onStart={onStartScenario} />
       </TimeControl>
-      <p className="scenario-summary">{api.scenario.name}：{api.scenario.summary}<span className="scenario-note">（患者の値は仮の値）</span>{' '}
+      <p className="scenario-summary">{api.scenario.name}：{api.scenario.summary}
+        {(api.scenario.conditions ?? []).map((c) => <strong key={c} className="scenario-condition">{c}</strong>)}<span className="scenario-note">（患者の値は仮の値）</span>{' '}
         <Unverified refKey="scenarioInitialSettings" what="最初の人工呼吸器設定（シナリオの初期値。ガイドラインの推奨値ではない）" /></p>
       <main className="grid">
         <section className="panel monitor" aria-label="ベッドサイドモニタ">

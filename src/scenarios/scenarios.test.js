@@ -34,9 +34,22 @@ describe('シナリオ（Phase 4A）', () => {
     const shown = (id) => initialPbSettings(getScenario(id)).confirmed;
     expect(shown('normal')).toMatchObject({ vt: 460, f: 14, peep: 5, o2: 40, height: 170, sex: 'male' });
     expect(shown('ards')).toMatchObject({ vt: 395, f: 22, peep: 14, o2: 80 });
-    expect(shown('copd')).toMatchObject({ vt: 430, f: 12, peep: 5, o2: 40, height: 165 });
+    expect(shown('copd')).toMatchObject({ vt: 430, f: 12, peep: 5, o2: 30, height: 165 });
     expect(toEngineSettings(shown('ards'))).toMatchObject({ mode: 'VC-AC', rr: 22, vt: 0.395, peep: 14, fio2: 0.8 });
   });
+
+  it('重症 ARDS は「昇圧薬を使用中」：最初の設定（PEEP 14）での平均血圧が約 70 mmHg で、モニタのアラームの下限 65 mmHg を上回る', () => {
+    const sc = getScenario('ards');
+    expect(sc.conditions).toEqual(['昇圧薬を使用中']);
+    expect(sc.patient.gas.mapBase).toBe(95);
+    expect(getScenario('normal').patient.gas.mapBase).toBe(85);
+    expect(getScenario('copd').patient.gas.mapBase).toBe(85);
+    const st = toEngineSettings(initialPbSettings(sc).confirmed);
+    const v = deriveVitals(run(createState(sc.patient, st, 'pb980'), sc.patient, st, 'pb980', sc.effort, 300).state.slow, sc.patient.gas);
+    expect(v.map).toBeGreaterThan(69);
+    expect(v.map).toBeLessThan(71);
+    expect(v.co).toBeCloseTo(4.27, 1); // 心拍出量は変えていない
+  }, 60000);
 
   // 受け入れ条件 12
   it('No.12 3 つのシナリオを最初の設定のまま 10 分動かしても、計算が壊れない', () => {
